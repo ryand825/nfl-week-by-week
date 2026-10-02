@@ -415,9 +415,10 @@ function injHTML(g,b){
     // game feed has body part, side and return date; league feed adds the notes
     const gameItems=((b&&b.inj||[]).find(x=>x.id===t.id)||{}).items||[];
     const league=(INJ.byTeam&&INJ.byTeam[t.id])||[];
-    const byName={};league.forEach(i=>byName[i.n]=i);
-    const base=gameItems.length?gameItems:league;
-    const all=base.map(i=>{const l=byName[i.n]||{};return Object.assign({},i,{k:l.k||i.k||'',sc:l.sc||'',lc:l.lc||'',j:i.j||l.j||'',pos:i.pos||l.pos||'',r:i.r||l.r||'',b:i.b||l.b||'',d:i.d||l.d||'',side:i.side||l.side||''})}).filter(i=>i.s&&i.s!=='Active');
+    // the game feed lists only that week's report; the league feed is the full team list. Use both.
+    const byL={},byG={};league.forEach(i=>byL[i.n]=i);gameItems.forEach(i=>byG[i.n]=i);
+    const names=[...new Set([...league.map(i=>i.n),...gameItems.map(i=>i.n)])];
+    const all=names.map(n=>{const l=byL[n]||{},q=byG[n]||{};return{k:l.k||q.k||'',n,pos:q.pos||l.pos||'',j:q.j||l.j||'',s:q.s||l.s,b:q.b||l.b||'',d:q.d||l.d||'',side:q.side||l.side||'',r:q.r||l.r||'',sc:l.sc||'',lc:l.lc||''}}).filter(i=>i.s&&i.s!=='Active');
     all.sort((x,y)=>injOrd(x.s)-injOrd(y.s)||x.n.localeCompare(y.n));
     const main=all.filter(i=>i.s!=='Injured Reserve'),ir=all.filter(i=>i.s==='Injured Reserve');
     return `<div class="injteam"><div class="injh">${badge(t)}<b>${esc(t.name)}</b></div>`+
