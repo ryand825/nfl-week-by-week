@@ -254,7 +254,7 @@ function renderScores(){
   $('#main').className='wrap full';
   $('#main').innerHTML=html;
 }
-let grp='div';
+let grp=pref('nfl-grp')==='conf'?'conf':'div';
 function standTable(rows,title,sub){
   const cols=[['W','wins'],['L','losses'],['T','ties'],['PCT','winPercent'],['PF','pointsFor'],['PA','pointsAgainst'],['DIFF','pointDifferential'],['STRK','streak'],['HOME','Home'],['ROAD','Road'],['CONF','vs. Conf.'],['DIV','divisionRecord']];
   const e=rows.slice().sort((a,b)=>(+b.m.winPercent)-(+a.m.winPercent)||(+b.m.pointDifferential)-(+a.m.pointDifferential));
@@ -392,7 +392,7 @@ function closeGame(fromPop){$('#ovroot').innerHTML='';document.body.style.overfl
 window.addEventListener('popstate',()=>{if($('#ov'))closeGame(true);else if(view==='team')leaveTeam(true)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#ov'))closeGame()});
 /* events */
-$('#main').addEventListener('click',e=>{const gb=e.target.closest('[data-grp]');if(gb){grp=gb.dataset.grp;renderStand();return}const tl=e.target.closest('[data-tid]');if(tl){openTeam(tl.dataset.tid,false);return}if(e.target.closest('#back')){leaveTeam();return}const c=e.target.closest('.card,.sg');if(c&&c.dataset.id)openGame(c.dataset.id,c)});
+$('#main').addEventListener('click',e=>{const gb=e.target.closest('[data-grp]');if(gb){grp=gb.dataset.grp;pref('nfl-grp',grp);renderStand();return}const tl=e.target.closest('[data-tid]');if(tl){openTeam(tl.dataset.tid,false);return}if(e.target.closest('#back')){leaveTeam();return}const c=e.target.closest('.card,.sg');if(c&&c.dataset.id)openGame(c.dataset.id,c)});
 $('#strip').addEventListener('click',e=>{const b=e.target.closest('.wk');if(b){wk=+b.dataset.i;pref('nfl-week',wk+1);render();refreshLive()}});
 $('#prev').onclick=()=>{if(wk>0){wk--;pref('nfl-week',wk+1);render();refreshLive()}};
 $('#next').onclick=()=>{if(wk<W.length-1){wk++;pref('nfl-week',wk+1);render();refreshLive()}};
