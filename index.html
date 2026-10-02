@@ -105,6 +105,7 @@ button.sg:hover{background:var(--surface2)}
 button.side{border:0;background:none;color:inherit;font:inherit;padding:6px;border-radius:8px;cursor:pointer}
 button.side:hover b{text-decoration:underline}
 .side .go{color:var(--accent-text);font-family:var(--body)}
+@media (max-width:720px){.fullm{padding-inline:0}.fullm .wkhead,.fullm .conf h3{padding-inline:16px}.fullm .tw{border-radius:0;border-inline:0}}
 .logo{flex:0 0 auto;display:inline-block;width:26px;height:26px;border-radius:50%}
 .logo picture,.logo img{display:block;width:100%;height:100%;object-fit:contain}
 .logo.nologo{background:var(--c)}.logo.nologo picture{display:none}
@@ -262,7 +263,7 @@ function standTable(rows,title,sub){
     return `<tr><td><span class="rank">${i+1}</span><button class="tl" data-tid="${esc(t.id)}">${badge(tm)}<span>${esc(t.name)}</span></button></td>`+cols.map(([_,k])=>{let v=t.m[k]??'';let cl='n';if(k==='pointDifferential')cl+=v.startsWith('+')?' pos':v.startsWith('-')?' neg':'';if(k==='streak')cl+=v[0]==='W'?' pos':v[0]==='L'?' neg':'';return `<td class="${cl}">${esc(v)}</td>`}).join('')+'</tr>'}).join('')+`</tbody></table></div></section>`;
 }
 function renderStand(){
-  $('#main').className='wrap';
+  $('#main').className='wrap fullm';
   const through=Math.max(1,W.reduce((n,_,i)=>weekState(i)==='done'?i+1:n,0));
   let html=`<div class="wkhead"><h2>Standings</h2><span class="sub">Through Week ${through}, ordered by win percentage then point differential</span><div class="tabs gsel" role="group" aria-label="Group standings by"><button data-grp="div" aria-pressed="${grp==='div'}">Division</button><button data-grp="conf" aria-pressed="${grp==='conf'}">Conference</button></div></div>`;
   const byId={};DATA.stand.forEach(c=>c.ents.forEach(t=>byId[t.id]=t));
