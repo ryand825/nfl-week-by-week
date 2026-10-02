@@ -92,7 +92,7 @@ button.sg:hover{background:var(--surface2)}
 .sd{font:500 12px/1.35 var(--mono)}
 .so{display:flex;align-items:center;gap:8px;min-width:0}
 .so b{font:800 20px/1 var(--display);letter-spacing:.03em}
-.so .at{font:500 12px var(--mono);color:var(--muted);width:2ch;text-align:center}
+.so .at{font:500 12px var(--mono);color:var(--muted);width:2ch;text-align:left}
 .on{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sr{text-align:right;font:500 13px var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
 .sr small{display:block;color:var(--muted);font-size:11px}
@@ -286,7 +286,7 @@ function renderTeam(){
     else if(g.state==='in')res=`<span class="live">${me.score}–${op.score}</span><small class="live">${esc(g.stat)}</small>`;
     else res=`${esc(fmtTime(g.date))}<small>${esc(g.tv.join(', '))}</small>`;
     const dt=new Date(g.date).toLocaleDateString(undefined,{weekday:'short',month:'numeric',day:'numeric'});
-    return `<button class="sg" data-id="${g.id}" aria-label="Week ${w}, ${me.home?'vs':'at'} ${esc(op.loc+' '+op.name)}"><span class="wn">${w}</span><span class="sd">${esc(dt)}${sl?`<br><b class="slot">${sl}</b>`:''}</span><span class="so">${badge(op)}<span class="at">${me.home?'vs':'@'}</span><b>${esc(op.ab)}</b><span class="on">${esc(op.name)}</span></span><span class="sr">${res}</span></button>`;
+    return `<button class="sg" data-id="${g.id}" aria-label="Week ${w}, ${me.home?'vs':'at'} ${esc(op.loc+' '+op.name)}"><span class="wn">${w}</span><span class="sd">${esc(dt)}${sl?`<br><b class="slot">${sl}</b>`:''}</span><span class="so"><span class="at">${me.home?'vs':'@'}</span>${badge(op)}<b>${esc(op.ab)}</b><span class="on">${esc(op.name)}</span></span><span class="sr">${res}</span></button>`;
   }).join('');
   $('#main').innerHTML=`<button class="back" id="back">‹ Back</button><div class="th">${badge(tm)}<div><h2>${esc(tm.loc)} ${esc(tm.name)}</h2><div class="tsum">${sum.map(s=>`<span>${esc(s[0])} <b>${esc(s[1])}</b></span>`).join('')}</div></div></div><div class="sched">${rows}</div>`;
 }
