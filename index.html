@@ -57,7 +57,7 @@ main{padding-block:20px 40px}
 .wkhead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px}
 h2{font:800 40px/1 var(--display);letter-spacing:.02em;text-transform:uppercase;margin:0;text-wrap:balance}
 .sub{color:var(--muted);font-size:14px}
-.bye{color:var(--muted);font-size:13px;margin:4px 0 0}
+.bye{color:var(--muted);font:400 12px var(--mono)}
 .dtabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin:14px 0 0;border-bottom:1px solid var(--line)}
 .dtabs::-webkit-scrollbar{display:none}
 .dtabs button{flex:0 0 auto;border:0;background:none;padding:10px 14px;font:600 15px var(--body);color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap}
@@ -215,7 +215,7 @@ function renderScores(){
   const fin=all.filter(g=>g.state==='post').length,live=all.filter(g=>g.state==='in').length;
   const playing=new Set(all.flatMap(g=>g.teams.map(t=>t.id)));
   const bye=Object.values(teamsById).filter(t=>!playing.has(t.id)).map(t=>t.ab).sort();
-  let html=`<div class="wkhead"><h2>Week ${wk+1}</h2><span class="sub">${all.length} games · ${fin} final${live?' · '+live+' live':''}${bye.length?' · Bye: '+esc(bye.join(', ')):''}</span></div>`;
+  let html=`<div class="wkhead"><h2>Week ${wk+1}</h2>${bye.length?`<span class="bye">Bye: ${esc(bye.join(', '))}</span>`:''}</div>`;
   html+=gs.length?`<div class="grid">${gs.map(card).join('')}</div>`:'<p class="empty">No games scheduled.</p>';
   $('#main').className='wrap full';
   $('#main').innerHTML=html;
