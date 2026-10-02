@@ -77,6 +77,34 @@ h2{font:800 40px/1 var(--display);letter-spacing:.02em;text-transform:uppercase;
 .ctop .st.live{color:var(--live)}
 .ctop .tv{font:600 12px var(--body);color:var(--fg);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .trow{display:flex;align-items:center;gap:7px;min-width:0}
+.slot{font:800 13px var(--body);letter-spacing:.06em;color:var(--accent-text)}
+.back{border:1px solid var(--line);background:var(--surface);color:inherit;border-radius:6px;height:34px;padding:0 12px;font-weight:600;margin:12px 16px 0}
+.th{display:flex;align-items:center;gap:14px;padding:14px 16px 4px}
+.th .logo{width:56px;height:56px}
+.th h2{font-size:34px}
+.tsum{display:flex;flex-wrap:wrap;gap:4px 16px;color:var(--muted);font:400 12px var(--mono);margin-top:6px}
+.tsum b{color:var(--fg);font-weight:500}
+.sched{margin-top:12px;border-top:1px solid var(--line);background:var(--surface)}
+.sg{display:grid;grid-template-columns:24px 84px minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;color:inherit;font:inherit;padding:10px 16px;min-height:56px}
+button.sg{cursor:pointer}
+button.sg:hover{background:var(--surface2)}
+.wn{font:500 12px var(--mono);color:var(--muted)}
+.sd{font:500 12px/1.35 var(--mono)}
+.so{display:flex;align-items:center;gap:8px;min-width:0}
+.so b{font:800 20px/1 var(--display);letter-spacing:.03em}
+.so .at{font:500 12px var(--mono);color:var(--muted);width:2ch;text-align:center}
+.on{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sr{text-align:right;font:500 13px var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.sr small{display:block;color:var(--muted);font-size:11px}
+.sr .live,.sr small.live{color:var(--live)}
+.sg.bye{color:var(--muted);min-height:44px}
+.sg.bye .so b{font-size:15px;letter-spacing:.12em}
+@media (max-width:520px){.on{display:none}.sg{grid-template-columns:20px 76px minmax(0,1fr) auto;padding-inline:12px}}
+.tl{display:flex;align-items:center;gap:10px;border:0;background:none;color:inherit;font:inherit;font-weight:500;padding:0;text-align:left;cursor:pointer}
+.tl:hover span:last-child{text-decoration:underline}
+button.side{border:0;background:none;color:inherit;font:inherit;padding:6px;border-radius:8px;cursor:pointer}
+button.side:hover b{text-decoration:underline}
+.side .go{color:var(--accent-text);font-family:var(--body)}
 .logo{flex:0 0 auto;display:inline-block;width:26px;height:26px;border-radius:50%}
 .logo picture,.logo img{display:block;width:100%;height:100%;object-fit:contain}
 .logo.nologo{background:var(--c)}.logo.nologo picture{display:none}
@@ -200,9 +228,9 @@ function card(g){
   const [a,h]=g.teams, ln=lines(g);
   const lnA=g.ou?'o'+g.ou:'', lnH=g.odds?ln[h.id]||'':'';
   const row=(t,l)=>`<div class="trow ${g.state==='post'?(t.win?'win':'lose'):''}">${badge(t)}<span class="ab">${esc(t.ab)}</span><span class="rec">${esc(t.rec||'')}</span>${g.state==='pre'?`<span class="odd">${esc(l)}</span>`:`<span class="score">${esc(t.score)}</span>`}</div>`;
-  const dy=new Date(g.date).toLocaleDateString(undefined,{weekday:'short'});const st=dy+' '+(g.state==='pre'?fmtTime(g.date):g.state==='in'?g.stat:('Final'+(/OT/.test(g.stat)?'/OT':'')));
+  const sl=slot(g),dy=new Date(g.date).toLocaleDateString(undefined,{weekday:'short'});const st=(sl?'':dy+' ')+(g.state==='pre'?fmtTime(g.date):g.state==='in'?g.stat:('Final'+(/OT/.test(g.stat)?'/OT':'')));
   return `<button class="card" data-id="${g.id}" aria-label="${esc(a.loc+' '+a.name+' at '+h.loc+' '+h.name)}">
-    <div class="ctop"><span class="st ${g.state==='in'?'live':''}">${esc(st)}</span><span class="tv">${esc(g.tv.join(', '))}</span></div>
+    <div class="ctop"><span class="st ${g.state==='in'?'live':''}">${sl?`<b class="slot">${sl}</b> `:''}${esc(st)}</span><span class="tv">${esc(g.tv.join(', '))}</span></div>
     ${row(a,lnA)}${row(h,lnH)}</button>`;
 }
 function renderStrip(){
@@ -226,7 +254,7 @@ function standTable(rows,title,sub){
   const e=rows.slice().sort((a,b)=>(+b.m.winPercent)-(+a.m.winPercent)||(+b.m.pointDifferential)-(+a.m.pointDifferential));
   return `<section class="conf"><h3>${esc(title)}</h3><div class="tw"><table><thead><tr><th>Team</th>${cols.map(x=>`<th>${x[0]}</th>`).join('')}</tr></thead><tbody>`+
   e.map((t,i)=>{const tm=teamsById[t.id]||{color:'444444',ab:t.ab};
-    return `<tr><td><span class="rank">${i+1}</span>${badge(tm)}<span>${esc(t.name)}</span></td>`+cols.map(([_,k])=>{let v=t.m[k]??'';let cl='n';if(k==='pointDifferential')cl+=v.startsWith('+')?' pos':v.startsWith('-')?' neg':'';if(k==='streak')cl+=v[0]==='W'?' pos':v[0]==='L'?' neg':'';return `<td class="${cl}">${esc(v)}</td>`}).join('')+'</tr>'}).join('')+`</tbody></table></div></section>`;
+    return `<tr><td><span class="rank">${i+1}</span><button class="tl" data-tid="${esc(t.id)}">${badge(tm)}<span>${esc(t.name)}</span></button></td>`+cols.map(([_,k])=>{let v=t.m[k]??'';let cl='n';if(k==='pointDifferential')cl+=v.startsWith('+')?' pos':v.startsWith('-')?' neg':'';if(k==='streak')cl+=v[0]==='W'?' pos':v[0]==='L'?' neg':'';return `<td class="${cl}">${esc(v)}</td>`}).join('')+'</tr>'}).join('')+`</tbody></table></div></section>`;
 }
 function renderStand(){
   $('#main').className='wrap';
@@ -237,10 +265,66 @@ function renderStand(){
   else DATA.stand.forEach(c=>{html+=standTable(c.ents,c.conf)});
   $('#main').innerHTML=html;
 }
+function slot(g){
+  const p=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',hour12:false}).formatToParts(new Date(g.date));
+  const wd=p.find(x=>x.type==='weekday').value,hr=(+p.find(x=>x.type==='hour').value)%24;
+  return hr>=19?({Thu:'TNF',Sun:'SNF',Mon:'MNF'}[wd]||''):'';
+}
+/* team schedule */
+let teamId=null,returnView='scores',teamPushed=false,lastAll=0;
+function renderTeam(){
+  $('#main').className='wrap full';
+  const tm=teamsById[teamId];if(!tm){$('#main').innerHTML='';return}
+  const st=DATA.stand.flatMap(c=>c.ents).find(t=>t.id===teamId),m=st?st.m:{};
+  const sum=[m.overall&&['Record',m.overall],m.Home&&['Home',m.Home],m.Road&&['Road',m.Road],m.divisionRecord&&['Div',m.divisionRecord],m.streak&&['Streak',m.streak]].filter(Boolean);
+  const rows=W.map((gs,i)=>{
+    const w=i+1,g=gs.find(x=>x.teams.some(t=>t.id===teamId));
+    if(!g)return `<div class="sg bye"><span class="wn">${w}</span><span class="sd"></span><span class="so"><b>BYE</b></span><span class="sr"></span></div>`;
+    const me=g.teams.find(t=>t.id===teamId),op=g.teams.find(t=>t.id!==teamId),sl=slot(g);
+    let res;
+    if(g.state==='post'){const a=+me.score,b=+op.score,r=a>b?'W':a<b?'L':'T';res=`<span class="${r==='W'?'pos':r==='L'?'neg':''}"><b>${r}</b> ${a}–${b}</span>${/OT/.test(g.stat)?'<small>OT</small>':''}`}
+    else if(g.state==='in')res=`<span class="live">${me.score}–${op.score}</span><small class="live">${esc(g.stat)}</small>`;
+    else res=`${esc(fmtTime(g.date))}<small>${esc(g.tv.join(', '))}</small>`;
+    const dt=new Date(g.date).toLocaleDateString(undefined,{weekday:'short',month:'numeric',day:'numeric'});
+    return `<button class="sg" data-id="${g.id}" aria-label="Week ${w}, ${me.home?'vs':'at'} ${esc(op.loc+' '+op.name)}"><span class="wn">${w}</span><span class="sd">${esc(dt)}${sl?`<br><b class="slot">${sl}</b>`:''}</span><span class="so">${badge(op)}<span class="at">${me.home?'vs':'@'}</span><b>${esc(op.ab)}</b><span class="on">${esc(op.name)}</span></span><span class="sr">${res}</span></button>`;
+  }).join('');
+  $('#main').innerHTML=`<button class="back" id="back">‹ Back</button><div class="th">${badge(tm)}<div><h2>${esc(tm.loc)} ${esc(tm.name)}</h2><div class="tsum">${sum.map(s=>`<span>${esc(s[0])} <b>${esc(s[1])}</b></span>`).join('')}</div></div></div><div class="sched">${rows}</div>`;
+}
+function openTeam(id,fromSheet){
+  if(view!=='team')returnView=view;
+  teamId=id;
+  if(fromSheet){
+    $('#ovroot').innerHTML='';document.body.style.overflow='';
+    if(pushed){pushed=false;try{history.replaceState({team:id},'');teamPushed=true}catch(e){teamPushed=false}}
+    else if(!teamPushed){try{history.pushState({team:id},'');teamPushed=true}catch(e){}}
+  }else if(view!=='team'){try{history.pushState({team:id},'');teamPushed=true}catch(e){teamPushed=false}}
+  view='team';render();window.scrollTo(0,0);refreshAll();
+}
+function leaveTeam(fromPop){
+  view=returnView;
+  if(teamPushed&&fromPop!==true){teamPushed=false;try{history.back()}catch(e){}}
+  teamPushed=false;render();
+}
+function setView(v){
+  if(view==='team'&&teamPushed){teamPushed=false;try{history.back()}catch(e){}}
+  view=v;render();
+}
+async function refreshAll(){
+  if(Date.now()-lastAll<60000)return;lastAll=Date.now();
+  const idx=W.map((_,i)=>i).filter(i=>i!==wk&&W[i].some(g=>g.state!=='post'));
+  await Promise.all(idx.map(async i=>{
+    try{
+      const d=await jget(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?week=${i+1}&seasontype=2&dates=2026`);
+      d.events.map(e=>mapEv(e,i+1)).forEach(f=>{const old=W[i].find(x=>x.id===f.id);if(old)Object.assign(old,f);else W[i].push(f)});
+    }catch(e){}
+  }));
+  if(view==='team'&&!$('#ov'))renderTeam();
+}
 function render(){
-  document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',String((b.id==='tab-scores')===(view==='scores'))));
+  const tabView=view==='team'?returnView:view;
+  document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',String((b.id==='tab-scores')===(tabView==='scores'))));
   $('#weeks').hidden=view!=='scores';
-  if(view==='scores'){renderStrip();renderScores()}else renderStand();
+  if(view==='scores'){renderStrip();renderScores()}else if(view==='stand')renderStand();else renderTeam();
 }
 /* detail sheet */
 let lastFocus=null,detailTeam=0;
@@ -267,7 +351,7 @@ function openGame(id,trigger,re){
   openId=id;
   if(!re)lastFocus=trigger||document.activeElement;
   const [A,H]=g.teams,b=BOX[id];
-  const side=t=>`<div class="side">${badge(t)}<b>${esc(t.loc)} ${esc(t.name)}</b><small>${esc(t.rec||'')}</small></div>`;
+  const side=t=>`<button class="side" data-tid="${esc(t.id)}" aria-label="${esc(t.name)} schedule">${badge(t)}<b>${esc(t.loc)} ${esc(t.name)}</b><small>${esc(t.rec||'')}</small><small class="go">Schedule ›</small></button>`;
   let body='';
   if(g.state==='pre'){
     body=`<div class="board">${side(A)}<div class="big"><span class="dash">at</span></div>${side(H)}</div>
@@ -284,7 +368,7 @@ function openGame(id,trigger,re){
       body+=`<div class="sec"><h4>Player stats</h4><div class="tsel">${g.teams.map((t,i)=>`<button data-team="${i}" aria-pressed="${i===detailTeam}">${esc(t.ab)}</button>`).join('')}</div><div id="pl">${playersHTML(g,b)}</div></div>`;
     }else body+=`<p class="empty">Box score is not in this snapshot yet.</p>`;
   }
-  const hd=`${g.state==='post'?'Final':g.state==='in'?g.stat:'Week '+g.w}${g.state==='post'&&/OT/.test(g.stat)?' / OT':''} · Week ${g.w}`;
+  const hd=`${slot(g)?slot(g)+' · ':''}${g.state==='post'?'Final':g.state==='in'?g.stat:'Week '+g.w}${g.state==='post'&&/OT/.test(g.stat)?' / OT':''} · Week ${g.w}`;
   const prevScroll=re&&$('#ov')?$('#ov').scrollTop:0;
   $('#ovroot').innerHTML=`<div class="ov" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-label="Game detail"><div class="shead"><span>${esc(hd)} · ${esc(g.venue||'')}</span><button class="x" id="close" aria-label="Close">×</button></div>${body}</div></div>`;
   document.body.style.overflow='hidden';
@@ -294,19 +378,20 @@ function openGame(id,trigger,re){
   const ov=$('#ov');
   ov.addEventListener('click',e=>{if(e.target===ov)closeGame()});
   ov.addEventListener('click',e=>{const t=e.target.closest('[data-team]');if(t){detailTeam=+t.dataset.team;ov.querySelectorAll('[data-team]').forEach(x=>x.setAttribute('aria-pressed',String(+x.dataset.team===detailTeam)));$('#pl').innerHTML=playersHTML(g,b)}});
+  ov.addEventListener('click',e=>{const t=e.target.closest('[data-tid]');if(t)openTeam(t.dataset.tid,true)});
   $('#close').onclick=closeGame;
 }
 let pushed=false;
-function closeGame(fromPop){$('#ovroot').innerHTML='';document.body.style.overflow='';if(lastFocus&&lastFocus.focus)lastFocus.focus();if(pushed&&fromPop!==true){pushed=false;try{history.back()}catch(e){}}pushed=false}
-window.addEventListener('popstate',()=>{if($('#ov'))closeGame(true)});
+function closeGame(fromPop){$('#ovroot').innerHTML='';document.body.style.overflow='';if(lastFocus&&lastFocus.focus)lastFocus.focus();if(pushed&&fromPop!==true){pushed=false;try{history.back()}catch(e){}}pushed=false;if(view==='scores'){renderStrip();renderScores()}else if(view==='team')renderTeam()}
+window.addEventListener('popstate',()=>{if($('#ov'))closeGame(true);else if(view==='team')leaveTeam(true)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#ov'))closeGame()});
 /* events */
-$('#main').addEventListener('click',e=>{const gb=e.target.closest('[data-grp]');if(gb){grp=gb.dataset.grp;pref('nfl-grp',grp);renderStand();return}const c=e.target.closest('.card');if(c)openGame(c.dataset.id,c)});
+$('#main').addEventListener('click',e=>{const gb=e.target.closest('[data-grp]');if(gb){grp=gb.dataset.grp;pref('nfl-grp',grp);renderStand();return}const tl=e.target.closest('[data-tid]');if(tl){openTeam(tl.dataset.tid,false);return}if(e.target.closest('#back')){leaveTeam();return}const c=e.target.closest('.card,.sg');if(c&&c.dataset.id)openGame(c.dataset.id,c)});
 $('#strip').addEventListener('click',e=>{const b=e.target.closest('.wk');if(b){wk=+b.dataset.i;pref('nfl-week',wk+1);render();refreshLive()}});
 $('#prev').onclick=()=>{if(wk>0){wk--;pref('nfl-week',wk+1);render();refreshLive()}};
 $('#next').onclick=()=>{if(wk<W.length-1){wk++;pref('nfl-week',wk+1);render();refreshLive()}};
-$('#tab-scores').onclick=()=>{view='scores';render()};
-$('#tab-stand').onclick=()=>{view='stand';render()};
+$('#tab-scores').onclick=()=>setView('scores');
+$('#tab-stand').onclick=()=>setView('stand');
 /* standalone: live box scores, standings and current week */
 const API='https://site.api.espn.com/apis/site/v2/sports/football/nfl/';
 async function jget(u){const ac=new AbortController(),to=setTimeout(()=>ac.abort(),8000);try{const r=await fetch(u,{signal:ac.signal});if(!r.ok)throw 0;return await r.json()}finally{clearTimeout(to)}}
