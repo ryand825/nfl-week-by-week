@@ -126,6 +126,12 @@ button.side:hover b{text-decoration:underline}
 .none{color:var(--muted);font-size:13px;margin:6px 0}
 .ir{margin-top:10px}
 .ir summary{cursor:pointer;color:var(--muted);font-size:13px;padding:4px 0}
+.ret{font:500 12px var(--mono);color:var(--muted);margin-top:2px}
+.ret.end{color:var(--live);font-weight:600}
+.nt{margin-top:5px}
+.nt summary{cursor:pointer;color:var(--muted);font-size:12.5px;line-height:1.4}
+.nt p{margin:6px 0 2px;font-size:13px;line-height:1.45}
+.nt1{margin:5px 0 0;color:var(--muted);font-size:12.5px;line-height:1.4}
 .logo{flex:0 0 auto;display:inline-block;width:26px;height:26px;border-radius:50%}
 .logo picture,.logo img{display:block;width:100%;height:100%;object-fit:contain}
 .logo.nologo{background:var(--c)}.logo.nologo picture{display:none}
@@ -374,21 +380,44 @@ function playersHTML(g,b){
     return `<div class="pcat"><p class="cn">${names[c.n]}</p><div class="tw"><table><thead><tr><th>Player</th>${c.l.map(l=>`<th>${esc(l)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr><td style="display:table-cell">${esc(r[0])}${r[1]?` <span class="sub">#${esc(r[1])}</span>`:''}</td>${r[2].map(v=>`<td class="n">${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`}).join('');
 }
 let openId=null;
-const irOpen={};
+const irOpen={},noteOpen={};
+const INJ={t:0,byTeam:null};
+async function fetchInj(){
+  if(INJ.byTeam&&Date.now()-INJ.t<300000)return false;
+  try{
+    const d=await jget(API+'injuries');
+    const m={};
+    d.injuries.forEach(t=>{m[t.id]=(t.injuries||[]).map(i=>{const x=i.details||{},a=i.athlete||{};return{k:i.id||'',n:a.displayName||'',pos:(a.position||{}).abbreviation||'',j:a.jersey||'',s:i.status,b:x.type||'',d:x.detail||'',side:x.side||'',r:x.returnDate||'',sc:i.shortComment||'',lc:i.longComment||''}})});
+    INJ.byTeam=m;INJ.t=Date.now();return true;
+  }catch(e){return false}
+}
 const INJ_ORD={'Out':0,'Doubtful':1,'Questionable':2,'Injured Reserve':4};
 const injOrd=s=>INJ_ORD[s]??3;
 const injChip=s=>({'Out':['OUT','out'],'Doubtful':['DOUBT','d'],'Questionable':['QUEST','q'],'Injured Reserve':['IR','ir']}[s]||[String(s).slice(0,5).toUpperCase(),'q']);
+const seasonEnd=()=>new Date(Math.max(...W[W.length-1].map(x=>+new Date(x.date)))).toISOString().slice(0,10);
+const fmtRet=r=>{const [y,m,d]=r.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString(undefined,Object.assign({month:'short',day:'numeric'},y!==2026?{year:'numeric'}:{}))};
 function injHTML(g,b){
-  if(!b||!b.inj||!b.inj.length)return '';
+  const sum={};((b&&b.inj)||[]).forEach(t=>t.items.forEach(i=>{sum[t.id+'|'+i.n]=i}));
+  const have=(INJ.byTeam&&g.teams.some(t=>INJ.byTeam[t.id]))||(b&&b.inj&&b.inj.length);
+  if(!have)return '';
+  const end=seasonEnd();
   const row=i=>{
     const [ab,cl]=injChip(i.s);
     const part=[i.side&&i.side!=='Not Specified'?i.side:'',i.b].filter(Boolean).join(' ');
     const det=i.d&&i.d!=='Not Specified'?i.d:'';
     const sub=[i.pos,part,det].filter(Boolean).join(' · ');
-    return `<li><span class="ist s-${cl}" title="${esc(i.s)}">${ab}</span><span class="in"><span class="nm">${esc(i.n)}${i.j?` <small>#${esc(i.j)}</small>`:''}</span>${sub?`<small class="isub">${esc(sub)}</small>`:''}</span></li>`;
+    let ret='';
+    if(i.r&&(i.s==='Out'||i.s==='Injured Reserve'))ret=i.r>end?`<span class="ret end">Out for regular season · est. return ${esc(fmtRet(i.r))}</span>`:`<span class="ret">Est. return ${esc(fmtRet(i.r))}</span>`;
+    const note=i.sc?(i.lc&&i.lc!==i.sc?`<details class="nt" data-a="${esc(i.k||i.n)}"${noteOpen[i.k||i.n]?' open':''}><summary>${esc(i.sc)}</summary><p>${esc(i.lc)}</p></details>`:`<p class="nt1">${esc(i.sc)}</p>`):'';
+    return `<li><span class="ist s-${cl}" title="${esc(i.s)}">${ab}</span><span class="in"><span class="nm">${esc(i.n)}${i.j?` <small>#${esc(i.j)}</small>`:''}</span>${sub?`<small class="isub">${esc(sub)}</small>`:''}${ret}${note}</span></li>`;
   };
   const blocks=g.teams.map(t=>{
-    const all=((b.inj.find(x=>x.id===t.id)||{}).items||[]).filter(i=>i.s&&i.s!=='Active');
+    // game feed has body part, side and return date; league feed adds the notes
+    const gameItems=((b&&b.inj||[]).find(x=>x.id===t.id)||{}).items||[];
+    const league=(INJ.byTeam&&INJ.byTeam[t.id])||[];
+    const byName={};league.forEach(i=>byName[i.n]=i);
+    const base=gameItems.length?gameItems:league;
+    const all=base.map(i=>{const l=byName[i.n]||{};return Object.assign({},i,{k:l.k||i.k||'',sc:l.sc||'',lc:l.lc||'',j:i.j||l.j||'',pos:i.pos||l.pos||'',r:i.r||l.r||'',b:i.b||l.b||'',d:i.d||l.d||'',side:i.side||l.side||''})}).filter(i=>i.s&&i.s!=='Active');
     all.sort((x,y)=>injOrd(x.s)-injOrd(y.s)||x.n.localeCompare(y.n));
     const main=all.filter(i=>i.s!=='Injured Reserve'),ir=all.filter(i=>i.s==='Injured Reserve');
     return `<div class="injteam"><div class="injh">${badge(t)}<b>${esc(t.name)}</b></div>`+
@@ -425,10 +454,10 @@ function openGame(id,trigger,re){
   $('#ovroot').innerHTML=`<div class="ov" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-label="Game detail"><div class="shead"><span>${esc(hd)} · ${esc(g.venue||'')}</span><button class="x" id="close" aria-label="Close">×</button></div>${body}</div></div>`;
   document.body.style.overflow='hidden';
   if(prevScroll)$('#ov').scrollTop=prevScroll;
-  if(!re)fetchBox(id).then(ok=>{if(ok&&openId===id&&$('#ov'))openGame(id,null,true)});
+  if(!re)Promise.all([fetchBox(id),fetchInj()]).then(r=>{if((r[0]||r[1])&&openId===id&&$('#ov'))openGame(id,null,true)});
   if(!re){try{history.pushState({sheet:1},'');pushed=true}catch(e){pushed=false}$('#close').focus()}
   const ov=$('#ov');
-  ov.addEventListener('toggle',e=>{const d=e.target;if(d.classList&&d.classList.contains('ir'))irOpen[d.dataset.t]=d.open},true);
+  ov.addEventListener('toggle',e=>{const d=e.target;if(d.classList&&d.classList.contains('ir'))irOpen[d.dataset.t]=d.open;else if(d.classList&&d.classList.contains('nt'))noteOpen[d.dataset.a]=d.open},true);
   ov.addEventListener('click',e=>{if(e.target===ov)closeGame()});
   ov.addEventListener('click',e=>{const t=e.target.closest('[data-team]');if(t){detailTeam=+t.dataset.team;ov.querySelectorAll('[data-team]').forEach(x=>x.setAttribute('aria-pressed',String(+x.dataset.team===detailTeam)));$('#pl').innerHTML=playersHTML(g,b)}});
   ov.addEventListener('click',e=>{const t=e.target.closest('[data-tid]');if(t)openTeam(t.dataset.tid,true)});
@@ -454,7 +483,7 @@ async function fetchBox(id){
     BOX[id]={bt:((d.boxscore||{}).teams||[]).map(t=>({id:t.team.id,s:t.statistics.map(s=>[s.label,s.displayValue])})),
       pl:((d.boxscore||{}).players||[]).map(t=>({id:t.team.id,cats:t.statistics.map(c=>({n:c.name,l:c.labels,a:c.athletes.map(a=>[a.athlete.displayName,a.athlete.jersey,a.stats])}))})),
       sp:(d.scoringPlays||[]).map(p=>({q:(p.period||{}).number,clock:(p.clock||{}).displayValue,team:p.team.abbreviation,text:p.text,a:p.awayScore,h:p.homeScore})),
-      inj:(d.injuries||[]).map(t=>({id:t.team.id,items:(t.injuries||[]).map(i=>{const x=i.details||{},a=i.athlete||{};return{n:a.displayName||'',pos:(a.position||{}).abbreviation||'',j:a.jersey||'',s:i.status,b:x.type||'',d:x.detail||'',side:x.side||''}})}))};
+      inj:(d.injuries||[]).map(t=>({id:t.team.id,items:(t.injuries||[]).map(i=>{const x=i.details||{},a=i.athlete||{};return{n:a.displayName||'',pos:(a.position||{}).abbreviation||'',j:a.jersey||'',s:i.status,b:x.type||'',d:x.detail||'',side:x.side||'',r:x.returnDate||''}})}))};
     return true;
   }catch(e){return false}
 }
