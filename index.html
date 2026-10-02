@@ -207,13 +207,18 @@ function badge(t){
   return `<span class="logo" style="--c:#${esc(t.color==='000000'?t.alt:t.color)}"><picture><source media="(prefers-color-scheme: dark)" srcset="${b}500-dark/scoreboard/${k}.png"><img src="${b}500/scoreboard/${k}.png" alt="" onerror="this.closest('.logo').classList.add('nologo')"></picture></span>`}
 const fmtDay=d=>new Date(d).toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'});
 const fmtTime=d=>new Date(d).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+/* ESPN marks flexed or unscheduled games TBD and gives them a midnight-Eastern placeholder time */
+const isTBD=g=>g.state==='pre'&&/TBD/i.test(g.stat||'');
+const etFmt=(d,o)=>new Date(d).toLocaleDateString(undefined,Object.assign({timeZone:'America/New_York'},o));
+const timeOf=g=>isTBD(g)?'TBD':fmtTime(g.date);
+const sortKey=g=>new Date(g.date).getTime()+(isTBD(g)?18*3600e3:0);
 const dayKey=d=>{const x=new Date(d);return x.getFullYear()+'-'+x.getMonth()+'-'+x.getDate()};
 function weekState(i){const gs=W[i];if(gs.some(g=>g.state==='in'))return 'live';if(gs.length&&gs.every(g=>g.state==='post'))return 'done';return ''}
 function defaultWeek(){const i=W.findIndex((_,i)=>weekState(i)!=='done');return i<0?W.length-1:i}
 let wk=defaultWeek(), view='scores';
 
 function statusText(g){
-  if(g.state==='pre')return fmtTime(g.date);
+  if(g.state==='pre')return timeOf(g);
   if(g.state==='in')return g.stat;
   return g.stat;
 }
@@ -228,7 +233,7 @@ function card(g){
   const [a,h]=g.teams, ln=lines(g);
   const lnA=g.ou?'o'+g.ou:'', lnH=g.odds?ln[h.id]||'':'';
   const row=(t,l)=>`<div class="trow ${g.state==='post'?(t.win?'win':'lose'):''}">${badge(t)}<span class="ab">${esc(t.ab)}</span><span class="rec">${esc(t.rec||'')}</span>${g.state==='pre'?`<span class="odd">${esc(l)}</span>`:`<span class="score">${esc(t.score)}</span>`}</div>`;
-  const sl=slot(g),dy=new Date(g.date).toLocaleDateString(undefined,{weekday:'short'});const st=(sl?'':dy+' ')+(g.state==='pre'?fmtTime(g.date):g.state==='in'?g.stat:('Final'+(/OT/.test(g.stat)?'/OT':'')));
+  const sl=slot(g),dy=isTBD(g)?etFmt(g.date,{weekday:'short'}):new Date(g.date).toLocaleDateString(undefined,{weekday:'short'});const st=(sl?'':dy+' ')+(g.state==='pre'?timeOf(g):g.state==='in'?g.stat:('Final'+(/OT/.test(g.stat)?'/OT':'')));
   return `<button class="card" data-id="${g.id}" aria-label="${esc(a.loc+' '+a.name+' at '+h.loc+' '+h.name)}">
     <div class="ctop"><span class="st ${g.state==='in'?'live':''}">${sl?`<b class="slot">${sl}</b> `:''}${esc(st)}</span><span class="tv">${esc(g.tv.join(', '))}</span></div>
     ${row(a,lnA)}${row(h,lnH)}</button>`;
@@ -239,7 +244,7 @@ function renderStrip(){
   const el=$('#strip .wk[aria-current="true"]');if(el)el.scrollIntoView({inline:'center',block:'nearest'});
 }
 function renderScores(){
-  const all=W[wk], gs=all.slice().sort((x,y)=>new Date(x.date)-new Date(y.date));
+  const all=W[wk], gs=all.slice().sort((x,y)=>sortKey(x)-sortKey(y));
   const fin=all.filter(g=>g.state==='post').length,live=all.filter(g=>g.state==='in').length;
   const playing=new Set(all.flatMap(g=>g.teams.map(t=>t.id)));
   const bye=Object.values(teamsById).filter(t=>!playing.has(t.id)).map(t=>t.ab).sort();
@@ -284,8 +289,8 @@ function renderTeam(){
     let res;
     if(g.state==='post'){const a=+me.score,b=+op.score,r=a>b?'W':a<b?'L':'T';res=`<span class="${r==='W'?'pos':r==='L'?'neg':''}"><b>${r}</b> ${a}–${b}</span>${/OT/.test(g.stat)?'<small>OT</small>':''}`}
     else if(g.state==='in')res=`<span class="live">${me.score}–${op.score}</span><small class="live">${esc(g.stat)}</small>`;
-    else res=`${esc(fmtTime(g.date))}<small>${esc(g.tv.join(', '))}</small>`;
-    const dt=new Date(g.date).toLocaleDateString(undefined,{weekday:'short',month:'numeric',day:'numeric'});
+    else res=`${esc(timeOf(g))}<small>${esc(g.tv.join(', '))}</small>`;
+    const dt=isTBD(g)?etFmt(g.date,{weekday:'short',month:'numeric',day:'numeric'}):new Date(g.date).toLocaleDateString(undefined,{weekday:'short',month:'numeric',day:'numeric'});
     return `<button class="sg" data-id="${g.id}" aria-label="Week ${w}, ${me.home?'vs':'at'} ${esc(op.loc+' '+op.name)}"><span class="wn">${w}</span><span class="sd">${esc(dt)}${sl?`<br><b class="slot">${sl}</b>`:''}</span><span class="so"><span class="at">${me.home?'vs':'@'}</span>${badge(op)}<b>${esc(op.ab)}</b><span class="on">${esc(op.name)}</span></span><span class="sr">${res}</span></button>`;
   }).join('');
   $('#main').innerHTML=`<button class="back" id="back">‹ Back</button><div class="th">${badge(tm)}<div><h2>${esc(tm.loc)} ${esc(tm.name)}</h2><div class="tsum">${sum.map(s=>`<span>${esc(s[0])} <b>${esc(s[1])}</b></span>`).join('')}</div></div></div><div class="sched">${rows}</div>`;
@@ -355,7 +360,7 @@ function openGame(id,trigger,re){
   let body='';
   if(g.state==='pre'){
     body=`<div class="board">${side(A)}<div class="big"><span class="dash">at</span></div>${side(H)}</div>
-    <div class="sec pre"><h4>Game info</h4><dl><dt>Kickoff</dt><dd>${esc(fmtDay(g.date))}, ${esc(fmtTime(g.date))}</dd><dt>Venue</dt><dd>${esc(g.venue||'TBD')}</dd><dt>TV</dt><dd>${esc(g.tv.join(', ')||'TBD')}</dd>${g.odds?`<dt>Line</dt><dd>${esc(g.odds)}${g.ou?' · O/U '+esc(g.ou):''}</dd>`:''}</dl></div>`;
+    <div class="sec pre"><h4>Game info</h4><dl><dt>Kickoff</dt><dd>${isTBD(g)?esc(etFmt(g.date,{weekday:'long',month:'short',day:'numeric'}))+', time TBD':esc(fmtDay(g.date))+', '+esc(fmtTime(g.date))}</dd><dt>Venue</dt><dd>${esc(g.venue||'TBD')}</dd><dt>TV</dt><dd>${esc(g.tv.join(', ')||'TBD')}</dd>${g.odds?`<dt>Line</dt><dd>${esc(g.odds)}${g.ou?' · O/U '+esc(g.ou):''}</dd>`:''}</dl></div>`;
   }else{
     const n=Math.max(A.ls.length,H.ls.length);
     const hdr=Array.from({length:n},(_,i)=>`<th>${i<4?i+1:'OT'}</th>`).join('');
