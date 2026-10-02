@@ -107,6 +107,25 @@ button.side{border:0;background:none;color:inherit;font:inherit;padding:6px;bord
 button.side:hover b{text-decoration:underline}
 .side .go{color:var(--accent-text);font-family:var(--body)}
 @media (max-width:720px){.fullm{padding-inline:0}.fullm .wkhead,.fullm .conf h3{padding-inline:16px}.fullm .tw{border-radius:0;border-inline:0}}
+.injgrid{display:grid;grid-template-columns:1fr;gap:18px}
+@media (min-width:640px){.injgrid{grid-template-columns:1fr 1fr}}
+.injteam{min-width:0}
+.injh{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.injh .logo{width:26px;height:26px}
+.inj{list-style:none;margin:0;padding:0}
+.inj li{display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:14px}
+.inj .in{min-width:0;display:flex;flex-direction:column}
+.inj .in small{color:var(--muted);font:400 12px var(--mono)}
+.inj .nm small{display:inline}
+.inj .isub{margin-top:1px}
+.ist{flex:0 0 auto;min-width:50px;text-align:center;font:600 11px var(--mono);letter-spacing:.04em;padding:3px 0;border:1px solid var(--line);border-radius:4px;margin-top:1px}
+.s-out{color:var(--live);border-color:var(--live)}
+.s-d{color:var(--accent-text);border-color:var(--accent-text)}
+.s-q{color:var(--muted)}
+.s-ir{color:var(--muted);border-style:dashed}
+.none{color:var(--muted);font-size:13px;margin:6px 0}
+.ir{margin-top:10px}
+.ir summary{cursor:pointer;color:var(--muted);font-size:13px;padding:4px 0}
 .logo{flex:0 0 auto;display:inline-block;width:26px;height:26px;border-radius:50%}
 .logo picture,.logo img{display:block;width:100%;height:100%;object-fit:contain}
 .logo.nologo{background:var(--c)}.logo.nologo picture{display:none}
@@ -355,6 +374,29 @@ function playersHTML(g,b){
     return `<div class="pcat"><p class="cn">${names[c.n]}</p><div class="tw"><table><thead><tr><th>Player</th>${c.l.map(l=>`<th>${esc(l)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr><td style="display:table-cell">${esc(r[0])}${r[1]?` <span class="sub">#${esc(r[1])}</span>`:''}</td>${r[2].map(v=>`<td class="n">${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`}).join('');
 }
 let openId=null;
+const irOpen={};
+const INJ_ORD={'Out':0,'Doubtful':1,'Questionable':2,'Injured Reserve':4};
+const injOrd=s=>INJ_ORD[s]??3;
+const injChip=s=>({'Out':['OUT','out'],'Doubtful':['DOUBT','d'],'Questionable':['QUEST','q'],'Injured Reserve':['IR','ir']}[s]||[String(s).slice(0,5).toUpperCase(),'q']);
+function injHTML(g,b){
+  if(!b||!b.inj||!b.inj.length)return '';
+  const row=i=>{
+    const [ab,cl]=injChip(i.s);
+    const part=[i.side&&i.side!=='Not Specified'?i.side:'',i.b].filter(Boolean).join(' ');
+    const det=i.d&&i.d!=='Not Specified'?i.d:'';
+    const sub=[i.pos,part,det].filter(Boolean).join(' · ');
+    return `<li><span class="ist s-${cl}" title="${esc(i.s)}">${ab}</span><span class="in"><span class="nm">${esc(i.n)}${i.j?` <small>#${esc(i.j)}</small>`:''}</span>${sub?`<small class="isub">${esc(sub)}</small>`:''}</span></li>`;
+  };
+  const blocks=g.teams.map(t=>{
+    const all=((b.inj.find(x=>x.id===t.id)||{}).items||[]).filter(i=>i.s&&i.s!=='Active');
+    all.sort((x,y)=>injOrd(x.s)-injOrd(y.s)||x.n.localeCompare(y.n));
+    const main=all.filter(i=>i.s!=='Injured Reserve'),ir=all.filter(i=>i.s==='Injured Reserve');
+    return `<div class="injteam"><div class="injh">${badge(t)}<b>${esc(t.name)}</b></div>`+
+      (main.length?`<ul class="inj">${main.map(row).join('')}</ul>`:'<p class="none">No injuries listed.</p>')+
+      (ir.length?`<details class="ir" data-t="${esc(t.id)}"${irOpen[t.id]?' open':''}><summary>Injured reserve (${ir.length})</summary><ul class="inj">${ir.map(row).join('')}</ul></details>`:'')+`</div>`;
+  }).join('');
+  return `<div class="sec"><h4>Injuries</h4><div class="injgrid">${blocks}</div></div>`;
+}
 function openGame(id,trigger,re){
   const g=allGames().find(x=>x.id===id);if(!g)return;
   openId=id;
@@ -371,20 +413,22 @@ function openGame(id,trigger,re){
     const sa=+A.score,sh=+H.score;
     body=`<div class="board">${side(A)}<div class="big"><span class="${sa<sh?'l':''}">${esc(A.score)}</span><span class="dash">–</span><span class="${sh<sa?'l':''}">${esc(H.score)}</span></div>${side(H)}</div>
     <div class="ls tw"><table><thead><tr><th>Team</th>${hdr}<th>T</th></tr></thead><tbody>${[A,H].map(t=>`<tr><td style="display:table-cell">${esc(t.ab)}</td>${Array.from({length:n},(_,i)=>`<td class="n">${esc(t.ls[i]??'')}</td>`).join('')}<td class="n"><b>${esc(t.score)}</b></td></tr>`).join('')}</tbody></table></div>`;
-    if(b){
+    if(b&&b.bt.length){
       body+=`<div class="sec"><h4>Team stats</h4><div class="cmp">${cmpHTML(g,b)}</div></div>`;
       if(b.sp.length)body+=`<div class="sec"><h4>Scoring</h4><ul class="plays">${b.sp.map(p=>`<li><span class="q">${p.q>4?'OT':'Q'+p.q} ${esc(p.clock)}</span><span><b>${esc(p.team)}</b> ${esc(p.text)}</span><span class="sc">${p.a}–${p.h}</span></li>`).join('')}</ul></div>`;
       body+=`<div class="sec"><h4>Player stats</h4><div class="tsel">${g.teams.map((t,i)=>`<button data-team="${i}" aria-pressed="${i===detailTeam}">${esc(t.ab)}</button>`).join('')}</div><div id="pl">${playersHTML(g,b)}</div></div>`;
     }else body+=`<p class="empty">Box score is not in this snapshot yet.</p>`;
   }
-  const hd=`${slot(g)?slot(g)+' · ':''}${g.state==='post'?'Final':g.state==='in'?g.stat:'Week '+g.w}${g.state==='post'&&/OT/.test(g.stat)?' / OT':''} · Week ${g.w}`;
+  body+=injHTML(g,b);
+  const hd=`${slot(g)?slot(g)+' · ':''}${g.state==='post'?'Final':g.state==='in'?g.stat:'Upcoming'}${g.state==='post'&&/OT/.test(g.stat)?' / OT':''} · Week ${g.w}`;
   const prevScroll=re&&$('#ov')?$('#ov').scrollTop:0;
   $('#ovroot').innerHTML=`<div class="ov" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-label="Game detail"><div class="shead"><span>${esc(hd)} · ${esc(g.venue||'')}</span><button class="x" id="close" aria-label="Close">×</button></div>${body}</div></div>`;
   document.body.style.overflow='hidden';
   if(prevScroll)$('#ov').scrollTop=prevScroll;
-  if(!re&&g.state!=='pre')fetchBox(id).then(ok=>{if(ok&&openId===id&&$('#ov'))openGame(id,null,true)});
+  if(!re)fetchBox(id).then(ok=>{if(ok&&openId===id&&$('#ov'))openGame(id,null,true)});
   if(!re){try{history.pushState({sheet:1},'');pushed=true}catch(e){pushed=false}$('#close').focus()}
   const ov=$('#ov');
+  ov.addEventListener('toggle',e=>{const d=e.target;if(d.classList&&d.classList.contains('ir'))irOpen[d.dataset.t]=d.open},true);
   ov.addEventListener('click',e=>{if(e.target===ov)closeGame()});
   ov.addEventListener('click',e=>{const t=e.target.closest('[data-team]');if(t){detailTeam=+t.dataset.team;ov.querySelectorAll('[data-team]').forEach(x=>x.setAttribute('aria-pressed',String(+x.dataset.team===detailTeam)));$('#pl').innerHTML=playersHTML(g,b)}});
   ov.addEventListener('click',e=>{const t=e.target.closest('[data-tid]');if(t)openTeam(t.dataset.tid,true)});
@@ -407,9 +451,10 @@ async function jget(u){const ac=new AbortController(),to=setTimeout(()=>ac.abort
 async function fetchBox(id){
   try{
     const d=await jget(API+'summary?event='+id);
-    BOX[id]={bt:d.boxscore.teams.map(t=>({id:t.team.id,s:t.statistics.map(s=>[s.label,s.displayValue])})),
-      pl:(d.boxscore.players||[]).map(t=>({id:t.team.id,cats:t.statistics.map(c=>({n:c.name,l:c.labels,a:c.athletes.map(a=>[a.athlete.displayName,a.athlete.jersey,a.stats])}))})),
-      sp:(d.scoringPlays||[]).map(p=>({q:(p.period||{}).number,clock:(p.clock||{}).displayValue,team:p.team.abbreviation,text:p.text,a:p.awayScore,h:p.homeScore}))};
+    BOX[id]={bt:((d.boxscore||{}).teams||[]).map(t=>({id:t.team.id,s:t.statistics.map(s=>[s.label,s.displayValue])})),
+      pl:((d.boxscore||{}).players||[]).map(t=>({id:t.team.id,cats:t.statistics.map(c=>({n:c.name,l:c.labels,a:c.athletes.map(a=>[a.athlete.displayName,a.athlete.jersey,a.stats])}))})),
+      sp:(d.scoringPlays||[]).map(p=>({q:(p.period||{}).number,clock:(p.clock||{}).displayValue,team:p.team.abbreviation,text:p.text,a:p.awayScore,h:p.homeScore})),
+      inj:(d.injuries||[]).map(t=>({id:t.team.id,items:(t.injuries||[]).map(i=>{const x=i.details||{},a=i.athlete||{};return{n:a.displayName||'',pos:(a.position||{}).abbreviation||'',j:a.jersey||'',s:i.status,b:x.type||'',d:x.detail||'',side:x.side||''}})}))};
     return true;
   }catch(e){return false}
 }
