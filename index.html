@@ -62,6 +62,10 @@ h2{font:800 40px/1 var(--display);letter-spacing:.02em;text-transform:uppercase;
 .dtabs::-webkit-scrollbar{display:none}
 .dtabs button{flex:0 0 auto;border:0;background:none;padding:10px 14px;font:600 15px var(--body);color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap}
 .dtabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.full{max-width:none;padding-inline:0}
+.full .wkhead,.full .empty{padding-inline:16px}
+.full .grid{border-radius:0;border-inline:0}
+@media (min-width:1300px){.full .grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));background:var(--surface);overflow:hidden;border:1px solid var(--line);border-radius:10px;margin-top:14px}
 @media (min-width:720px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (min-width:1000px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
@@ -73,7 +77,11 @@ h2{font:800 40px/1 var(--display);letter-spacing:.02em;text-transform:uppercase;
 .ctop .st.live{color:var(--live)}
 .ctop .tv{font:600 12px var(--body);color:var(--fg);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .trow{display:flex;align-items:center;gap:7px;min-width:0}
-.dot{flex:0 0 auto;width:16px;height:16px;border-radius:50%;box-shadow:inset 0 0 0 1px #0003}
+.logo{flex:0 0 auto;display:inline-block;width:26px;height:26px;border-radius:50%}
+.logo picture,.logo img{display:block;width:100%;height:100%;object-fit:contain}
+.logo.nologo{background:var(--c)}.logo.nologo picture{display:none}
+td .logo{width:28px;height:28px}
+.side .logo{width:64px;height:64px}
 .ab{font:800 20px/1 var(--display);letter-spacing:.03em}
 .rec{font:400 12px var(--mono);color:var(--muted);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .odd{font:500 13px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
@@ -104,7 +112,7 @@ td.n{font-family:var(--mono);font-size:13px}
 .x{border:1px solid var(--line);background:var(--surface);width:34px;height:34px;border-radius:6px;font-size:18px;line-height:1}
 .board{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;margin:14px 0 6px}
 .side{display:flex;flex-direction:column;gap:6px;align-items:center;text-align:center;min-width:0}
-.side .badge{width:64px;height:42px;font-size:22px}
+
 .side b{font-weight:600}
 .side small{font:400 12px var(--mono);color:var(--muted)}
 .big{font:800 64px/1 var(--display);font-variant-numeric:tabular-nums;display:flex;gap:10px;align-items:center}
@@ -134,7 +142,7 @@ td.n{font-family:var(--mono);font-size:13px}
 .pre dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:0;font-size:14px}
 .pre dt{color:var(--muted)} .pre dd{margin:0}
 footer{padding-block:0 32px;color:var(--muted);font:400 12px var(--mono)}
-@media (max-width:520px){h2{font-size:34px}.big{font-size:48px}.side .badge{width:52px}.brand small{display:none}}
+@media (max-width:520px){h2{font-size:34px}.big{font-size:48px}.brand small{display:none}}
 @media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}}
 </style>
 
@@ -166,7 +174,9 @@ const pref=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k);localStor
 const allGames=()=>W.flat();
 const teamsById={};allGames().forEach(g=>g.teams.forEach(t=>teamsById[t.id]=t));
 function ink(hex){const n=parseInt(hex,16),r=n>>16,g=n>>8&255,b=n&255;return (0.299*r+0.587*g+0.114*b)>150?'#111':'#fff'}
-function badge(t){return `<span class="badge" style="background:#${esc(t.color)};color:${ink(t.color)}">${esc(t.ab)}</span>`}
+function badge(t){
+  const k=esc(t.ab.toLowerCase()),b='https://a.espncdn.com/i/teamlogos/nfl/';
+  return `<span class="logo" style="--c:#${esc(t.color==='000000'?t.alt:t.color)}"><picture><source media="(prefers-color-scheme: dark)" srcset="${b}500-dark/scoreboard/${k}.png"><img src="${b}500/scoreboard/${k}.png" alt="" onerror="this.closest('.logo').classList.add('nologo')"></picture></span>`}
 const fmtDay=d=>new Date(d).toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'});
 const fmtTime=d=>new Date(d).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
 const dayKey=d=>{const x=new Date(d);return x.getFullYear()+'-'+x.getMonth()+'-'+x.getDate()};
@@ -189,7 +199,7 @@ function lines(g){
 function card(g){
   const [a,h]=g.teams, ln=lines(g);
   const lnA=g.ou?'o'+g.ou:'', lnH=g.odds?ln[h.id]||'':'';
-  const row=(t,l)=>`<div class="trow ${g.state==='post'?(t.win?'win':'lose'):''}"><i class="dot" style="background:#${esc(t.color==='000000'?t.alt:t.color)}"></i><span class="ab">${esc(t.ab)}</span><span class="rec">${esc(t.rec||'')}</span>${g.state==='pre'?`<span class="odd">${esc(l)}</span>`:`<span class="score">${esc(t.score)}</span>`}</div>`;
+  const row=(t,l)=>`<div class="trow ${g.state==='post'?(t.win?'win':'lose'):''}">${badge(t)}<span class="ab">${esc(t.ab)}</span><span class="rec">${esc(t.rec||'')}</span>${g.state==='pre'?`<span class="odd">${esc(l)}</span>`:`<span class="score">${esc(t.score)}</span>`}</div>`;
   const dy=new Date(g.date).toLocaleDateString(undefined,{weekday:'short'});const st=dy+' '+(g.state==='pre'?fmtTime(g.date):g.state==='in'?g.stat:('Final'+(/OT/.test(g.stat)?'/OT':'')));
   return `<button class="card" data-id="${g.id}" aria-label="${esc(a.loc+' '+a.name+' at '+h.loc+' '+h.name)}">
     <div class="ctop"><span class="st ${g.state==='in'?'live':''}">${esc(st)}</span><span class="tv">${esc(g.tv.join(', '))}</span></div>
@@ -207,6 +217,7 @@ function renderScores(){
   const bye=Object.values(teamsById).filter(t=>!playing.has(t.id)).map(t=>t.ab).sort();
   let html=`<div class="wkhead"><h2>Week ${wk+1}</h2><span class="sub">${all.length} games · ${fin} final${live?' · '+live+' live':''}${bye.length?' · Bye: '+esc(bye.join(', ')):''}</span></div>`;
   html+=gs.length?`<div class="grid">${gs.map(card).join('')}</div>`:'<p class="empty">No games scheduled.</p>';
+  $('#main').className='wrap full';
   $('#main').innerHTML=html;
 }
 let grp=pref('nfl-grp')==='conf'?'conf':'div';
@@ -218,6 +229,7 @@ function standTable(rows,title,sub){
     return `<tr><td><span class="rank">${i+1}</span>${badge(tm)}<span>${esc(t.name)}</span></td>`+cols.map(([_,k])=>{let v=t.m[k]??'';let cl='n';if(k==='pointDifferential')cl+=v.startsWith('+')?' pos':v.startsWith('-')?' neg':'';if(k==='streak')cl+=v[0]==='W'?' pos':v[0]==='L'?' neg':'';return `<td class="${cl}">${esc(v)}</td>`}).join('')+'</tr>'}).join('')+`</tbody></table></div></section>`;
 }
 function renderStand(){
+  $('#main').className='wrap';
   const through=Math.max(1,W.reduce((n,_,i)=>weekState(i)==='done'?i+1:n,0));
   let html=`<div class="wkhead"><h2>Standings</h2><span class="sub">Through Week ${through}, ordered by win percentage then point differential</span><div class="tabs gsel" role="group" aria-label="Group standings by"><button data-grp="div" aria-pressed="${grp==='div'}">Division</button><button data-grp="conf" aria-pressed="${grp==='conf'}">Conference</button></div></div>`;
   const byId={};DATA.stand.forEach(c=>c.ents.forEach(t=>byId[t.id]=t));
