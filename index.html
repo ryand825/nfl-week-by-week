@@ -285,8 +285,10 @@ function openGame(id,trigger,re){
     }else body+=`<p class="empty">Box score is not in this snapshot yet.</p>`;
   }
   const hd=`${g.state==='post'?'Final':g.state==='in'?g.stat:'Week '+g.w}${g.state==='post'&&/OT/.test(g.stat)?' / OT':''} · Week ${g.w}`;
+  const prevScroll=re&&$('#ov')?$('#ov').scrollTop:0;
   $('#ovroot').innerHTML=`<div class="ov" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-label="Game detail"><div class="shead"><span>${esc(hd)} · ${esc(g.venue||'')}</span><button class="x" id="close" aria-label="Close">×</button></div>${body}</div></div>`;
   document.body.style.overflow='hidden';
+  if(prevScroll)$('#ov').scrollTop=prevScroll;
   if(!re&&g.state!=='pre')fetchBox(id).then(ok=>{if(ok&&openId===id&&$('#ov'))openGame(id,null,true)});
   if(!re){try{history.pushState({sheet:1},'');pushed=true}catch(e){pushed=false}$('#close').focus()}
   const ov=$('#ov');
@@ -361,7 +363,20 @@ async function refreshLive(){
 function foot(){$('#foot').textContent=liveOK?'Live scores from ESPN, updated '+new Date().toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'Offline. Showing data saved '+GEN+'. Reconnect to refresh.'}
 document.addEventListener('click',e=>{if(e.target.closest('#strip,#prev,#next'))touched=true},true);
 render();foot();refreshCurrent();refreshStand();
-setInterval(()=>{if(W[wk].some(g=>g.state==='in'))refreshLive()},30000);
+/* live polling: every 30s while a game is on or about to start, plus an open box score */
+const prevSt={};
+function needsPoll(){const now=Date.now();return W[wk].some(g=>g.state==='in'||(g.state==='pre'&&new Date(g.date).getTime()-now<20*60000))}
+async function tick(){
+  if(document.hidden)return;
+  if(needsPoll())await refreshLive();
+  if($('#ov')&&openId){
+    const g=allGames().find(x=>x.id===openId);
+    if(g&&(g.state==='in'||prevSt[openId]==='in')){const ok=await fetchBox(openId);if(ok&&$('#ov'))openGame(openId,null,true)}
+    if(g)prevSt[openId]=g.state;
+  }
+}
+setInterval(tick,30000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshLive();if(view==='stand')refreshStand()}});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
 </script>
 </body></html>
