@@ -75,7 +75,10 @@ h2{font:800 40px/1 var(--display);letter-spacing:.02em;text-transform:uppercase;
 .card:focus-visible{outline-offset:-2px}
 .ctop{display:flex;justify-content:space-between;gap:8px;font:500 12px var(--mono);color:var(--muted);min-height:16px}
 .ctop .st{color:var(--fg)}
-.ctop .st.live{color:var(--live)}
+.ctop .st.live,.sr small.live{color:var(--fg)}
+.ctop .st.live::before,.sr small.live::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--good);margin-right:6px;vertical-align:1px;box-shadow:0 0 0 0 var(--good)}
+@media (prefers-reduced-motion:no-preference){.ctop .st.live::before,.sr small.live::before{animation:lpulse 1.6s ease-out infinite}}
+@keyframes lpulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--good) 60%,transparent)}100%{box-shadow:0 0 0 6px transparent}}
 .ctop .tv{font:600 12px var(--body);color:var(--fg);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .trow{display:flex;align-items:center;gap:7px;min-width:0}
 .slot{font:800 13px var(--body);letter-spacing:.06em;color:var(--accent-text)}
@@ -97,7 +100,7 @@ button.sg:hover{background:var(--surface2)}
 .on{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sr{text-align:right;font:500 13px var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
 .sr small{display:block;color:var(--muted);font-size:11px}
-.sr .live,.sr small.live{color:var(--live)}
+.sr .live{color:var(--fg)}
 .sg.bye{color:var(--muted);min-height:44px}
 .sg.bye .so b{font-size:15px;letter-spacing:.12em}
 @media (max-width:520px){.on{display:none}.sg{grid-template-columns:20px 76px minmax(0,1fr) auto;padding-inline:12px}}
@@ -322,7 +325,7 @@ function card(g){
   const [a,h]=g.teams, ln=lines(g);
   const lnA=g.ou?'o'+g.ou:'', lnH=g.odds?ln[h.id]||'':'';
   const row=(t,l)=>`<div class="trow ${g.state==='post'?(t.win?'win':'lose'):''}">${badge(t)}<span class="ab">${esc(t.ab)}</span><span class="rec">${esc(t.rec||'')}</span>${g.state==='pre'?`<span class="odd">${esc(l)}</span>`:`${g.state==='in'&&g.sit&&g.sit.poss===t.id?FB:''}<span class="score">${esc(t.score)}</span>`}</div>`;
-  const sl=slot(g),dy=isTBD(g)?etFmt(g.date,{weekday:'short'}):new Date(g.date).toLocaleDateString(undefined,{weekday:'short'});const st=(sl?'':dy+' ')+(g.state==='pre'?timeOf(g):g.state==='in'?g.stat:('Final'+(/OT/.test(g.stat)?'/OT':'')));
+  const sl=slot(g),dy=isTBD(g)?etFmt(g.date,{weekday:'short'}):new Date(g.date).toLocaleDateString(undefined,{weekday:'short'});const st=(sl||g.state==='in'?'':dy+' ')+(g.state==='pre'?timeOf(g):g.state==='in'?g.stat:('Final'+(/OT/.test(g.stat)?'/OT':'')));
   return `<button class="card" data-id="${g.id}" aria-label="${esc(a.loc+' '+a.name+' at '+h.loc+' '+h.name)}">
     <div class="ctop"><span class="st ${g.state==='in'?'live':''}">${sl?`<b class="slot">${sl}</b> `:''}${esc(st)}</span><span class="tv">${esc(g.tv.join(', '))}</span></div>
     ${row(a,lnA)}${row(h,lnH)}${g.state==='in'&&g.sit?`<div class="sit${g.sit.rz?' rz':''}">${esc(g.sit.dd)}</div>`:''}</button>`;
