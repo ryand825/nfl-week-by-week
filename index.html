@@ -239,7 +239,7 @@ td.n{font-family:var(--mono);font-size:13px}
 .lplay .dplays p{margin:0;color:var(--fg)}
 .lplay .dplays .pm{font:400 12px var(--mono);color:var(--muted);margin-bottom:2px}
 .dplays .py{font:500 13px var(--mono);white-space:nowrap;padding-top:16px;text-align:right}
-.lplay .pen{color:var(--accent-text)}
+.lplay .pen,.dplays .ypen{color:var(--accent-text)}
 
 .pcs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px;margin-top:12px}
 .pc{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--bg)}
@@ -524,7 +524,11 @@ function kickHTML(g,b){
 const sgn=n=>(n>0?'+':'')+n;
 const penTxt=t=>esc(t).replace(/PENALTY on[\s\S]*$/,'<span class="pen">$&</span>');
 function ydsCell(x){
-  if(x.pen&&x.pen.net!=null)return x.pen.net?sgn(x.pen.net):'0';
+  const p=x.pen;
+  if(p&&p.net!=null){
+    if(p.np||p.eff===p.net)return `<span class="ypen">${p.net?sgn(p.net):'0'}</span>`;
+    return (p.net?sgn(p.net):'0')+(p.eff?` <span class="ypen">(${sgn(p.eff)})</span>`:'');
+  }
   return x.yd?esc(sgn(x.yd)):'';
 }
 function driveHTML(g,b){
