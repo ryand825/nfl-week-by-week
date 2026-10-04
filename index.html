@@ -216,7 +216,7 @@ td.n{font-family:var(--mono);font-size:13px}
 .ez.r span{transform:rotate(90deg)}
 .turf .yl{position:absolute;top:0;bottom:0;width:1px;background:var(--line)}
 .turf .yl.mid{background:var(--muted);opacity:.6}
-.turf .drv{position:absolute;top:0;bottom:0;opacity:.28}
+.turf .drv{position:absolute;top:0;bottom:0;box-sizing:border-box}
 .turf .karc{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 .karc .ka{fill:none;stroke:var(--fg);stroke-width:2;stroke-dasharray:5 4;opacity:.75;vector-effect:non-scaling-stroke}
 .karc .kr{fill:none;stroke:var(--fg);stroke-width:2;stroke-dasharray:1 4;stroke-linecap:round;opacity:.75;vector-effect:non-scaling-stroke}
@@ -225,7 +225,6 @@ td.n{font-family:var(--mono);font-size:13px}
 .scb .logo{width:26px;height:26px;background:#fff;padding:2px}
 .scb b{display:block;font:800 19px/1 var(--display);letter-spacing:.06em;text-transform:uppercase}
 .scb small{display:block;font:500 10px var(--mono);letter-spacing:.04em;opacity:.9;margin-top:2px}
-.turf .drv.old{opacity:.14}
 .turf .tom{position:absolute;z-index:2;top:5px;transform:translateX(-50%);font:700 10px/1 var(--mono);letter-spacing:.06em;padding:3px 5px;border-radius:4px;white-space:nowrap;box-shadow:0 1px 4px #0005}
 .turf .los{position:absolute;top:0;bottom:0;width:3px;margin-left:-1.5px;background:#2f6fe0}
 .turf .fdl{position:absolute;top:0;bottom:0;width:3px;margin-left:-1.5px;background:#f2c230}
@@ -514,6 +513,21 @@ function injHTML(g,b){
 }
 const fx=y=>(10+Math.max(0,Math.min(100,y)))/1.2;
 const tcol=t=>'#'+(t.color==='000000'?t.alt:t.color);
+// drive shading color: the team's primary or alternate, whichever stands out more against the field in the current theme
+const lum=h=>{const n=parseInt(h,16),f=c=>{c/=255;return c<=.03928?c/12.92:((c+.055)/1.055)**2.4};return .2126*f(n>>16)+.7152*f(n>>8&255)+.0722*f(n&255)};
+const cr=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)};
+const isDark=()=>{const t=document.documentElement.dataset.theme;return t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches};
+function shadeCol(t){
+  const bg=isDark()?'1a231e':'f5f6f4',ok=x=>x&&/^[0-9a-f]{6}$/i.test(x);
+  // primary if it shows, then the alternate unless it's plain black/white, else adjust the primary
+  for(const x of [t.color,!/^(000000|ffffff)$/i.test(t.alt||'')&&t.alt])if(ok(x)&&cr(x,bg)>=2.2)return '#'+x;
+  const c=ok(t.color)&&!/^(000000|ffffff)$/i.test(t.color)?t.color:ok(t.alt)?t.alt:'888888';
+  // still too close to the field: mix toward white (dark theme) or black (light theme) until it reads
+  const n=parseInt(c,16),to=isDark()?255:0,mix=k=>[n>>16,n>>8&255,n&255].map(v=>Math.round(v+(to-v)*k).toString(16).padStart(2,'0')).join('');
+  for(let k=.15;k<=.9;k+=.15){const m=mix(k);if(cr(m,bg)>=2.2)return '#'+m}
+  return '#'+mix(.9);
+}
+const drvStyle=(t,old)=>{const c=shadeCol(t);return old?`background:color-mix(in srgb,${c} 16%,transparent)`:`background:color-mix(in srgb,${c} 38%,transparent);border-block:3px solid ${c}`};
 function awaitKick(g,b){
   if(/halftime/i.test(g.stat))return true;
   const lq=b.dr&&b.dr.lp&&b.dr.lp.q;
@@ -594,7 +608,7 @@ function turnoverHTML(lp,DT,O,A,H,sx,ey){
   const m=dwn?null:int?/INTERCEPTED by [^.]*? at (?:([A-Z]{2,3}) )?(\d{1,2})\b/.exec(x):/RECOVERED by [A-Z]{2,3}-[^.]*? at (?:([A-Z]{2,3}) )?(\d{1,2})\b/.exec(x);
   const ty=m?txtSpot(m[1],m[2],A,H):ey;if(ty==null)return '';
   const X=y=>10+(100-y),lx=X(ly),tx=X(ty),ex=ey!=null?X(ey):null,c=tcol(O),fx_=v=>(v/1.2);
-  const old=sx!=null?`<i class="drv old" style="left:${fx(Math.min(sx,100-ly))}%;width:${Math.abs(100-ly-sx)/1.2}%;background:${tcol(DT)}"></i>`:'';
+  const old=sx!=null?`<i class="drv old" style="left:${fx(Math.min(sx,100-ly))}%;width:${Math.abs(100-ly-sx)/1.2}%;${drvStyle(DT,1)}"></i>`:'';
   const svg=`<svg class="karc" viewBox="0 0 120 64" preserveAspectRatio="none" aria-hidden="true">${int?`<path d="M${lx} 44Q${(lx+tx)/2} 4 ${tx} 44" class="ka"/>`:''}<circle cx="${tx}" cy="44" r="1.4" class="kl"/>${ex!=null&&Math.abs(ex-tx)>.5?`<path d="M${tx} 44H${ex}" class="kr"/>`:''}</svg>`;
   return old+svg+`<span class="tom" style="left:${fx_(tx)}%;background:${c};color:${ink(c.slice(1))}">${int?'INT':fum?'FUMBLE':'DOWNS'}</span>`;
 }
@@ -627,7 +641,7 @@ function driveHTML(g,b){
     const fd=s?Math.max(0,Math.min(100,goR?bx+(+s.dist||0):bx-(+s.dist||0))):0;
     const sy=dr.start!=null?dr.start:lp!==dlp&&!/kickoff|punt/i.test(lp.type||'')?(lp.st||{}).yl:null,sx=sy!=null?100-sy:null;
     field=fieldHTML(A,H,s?`<div class="pin" style="left:${fx(bx)}%">${badge(P)}</div>`:'',
-      `${sx!=null&&(!newDrive||!s)&&!(sc&&sc.S!==DT)?`<i class="drv" style="left:${fx(Math.min(sx,bx))}%;width:${Math.abs(bx-sx)/1.2}%;background:${tcol(DT)}"></i>`:''}
+      `${sx!=null&&(!newDrive||!s)&&!(sc&&sc.S!==DT)?`<i class="drv" style="left:${fx(Math.min(sx,bx))}%;width:${Math.abs(bx-sx)/1.2}%;${drvStyle(DT)}"></i>`:''}
         ${kickSVG(lp,O,A,newDrive||!prev.length,s?s.yl:null)}${s?'':scoreBanner(lp,DT,A,H)}${s&&newDrive?turnoverHTML(lp,DT,O,A,H,sx,s.yl):''}
         ${s?`<i class="los" style="left:${fx(bx)}%"></i>${!s.sdd||!s.dist||/goal/i.test(s.sdd)?'':`<i class="fdl" style="left:${fx(fd)}%"></i>`}`:''}`,
       s?`${O.ab} ball on ${s.pt||''}${s.dd?', '+s.dd:''}`:`${DT.ab} drive: ${lp.type||''}`);
