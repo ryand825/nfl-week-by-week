@@ -569,17 +569,18 @@ const emptyField=g=>`<div class="sec drive">${fieldHTML(g.teams[0],g.teams[1])}<
 const TXT_AB={ARI:'ARZ',BAL:'BLT',CLE:'CLV',HOU:'HST',LAR:'LA',WSH:'WAS'};
 // "NE 19" / "50" in play text -> yards from the home goal line (the app's field coordinate)
 function txtSpot(tok,n,A,H){if(!tok)return 50;const is=t=>tok===t.ab||tok===TXT_AB[t.ab];return is(H)?+n:is(A)?100-n:null}
-// after an interception or lost fumble, until the new team snaps: the old drive faded, the pass/turnover spot, and the return
+// after an interception, lost fumble or turnover on downs, until the new team snaps: the old drive faded, the pass/turnover spot, and the return
 function turnoverHTML(lp,DT,O,A,H,sx,ey){
   const t=lp.type||'',x=lp.text||'',ly=(lp.st||{}).yl;
   const int=/intercept/i.test(t)||/INTERCEPTED/.test(x),fum=!int&&/fumble/i.test(t+' '+x);
-  if(!int&&!fum||ly==null)return '';
-  const m=int?/INTERCEPTED by [^.]*? at (?:([A-Z]{2,3}) )?(\d{1,2})\b/.exec(x):/RECOVERED by [A-Z]{2,3}-[^.]*? at (?:([A-Z]{2,3}) )?(\d{1,2})\b/.exec(x);
+  const dwn=!int&&!fum&&(lp.st||{}).down===4&&!/punt|kick|field goal|touchdown|safety/i.test(t);
+  if(!int&&!fum&&!dwn||ly==null)return '';
+  const m=dwn?null:int?/INTERCEPTED by [^.]*? at (?:([A-Z]{2,3}) )?(\d{1,2})\b/.exec(x):/RECOVERED by [A-Z]{2,3}-[^.]*? at (?:([A-Z]{2,3}) )?(\d{1,2})\b/.exec(x);
   const ty=m?txtSpot(m[1],m[2],A,H):ey;if(ty==null)return '';
   const X=y=>10+(100-y),lx=X(ly),tx=X(ty),ex=ey!=null?X(ey):null,c=tcol(O),fx_=v=>(v/1.2);
   const old=sx!=null?`<i class="drv old" style="left:${fx(Math.min(sx,100-ly))}%;width:${Math.abs(100-ly-sx)/1.2}%;background:${tcol(DT)}"></i>`:'';
   const svg=`<svg class="karc" viewBox="0 0 120 64" preserveAspectRatio="none" aria-hidden="true">${int?`<path d="M${lx} 44Q${(lx+tx)/2} 4 ${tx} 44" class="ka"/>`:''}<circle cx="${tx}" cy="44" r="1.4" class="kl"/>${ex!=null&&Math.abs(ex-tx)>.5?`<path d="M${tx} 44H${ex}" class="kr"/>`:''}</svg>`;
-  return old+svg+`<span class="tom" style="left:${fx_(tx)}%;background:${c};color:${ink(c.slice(1))}">${int?'INT':'FUMBLE'}</span>`;
+  return old+svg+`<span class="tom" style="left:${fx_(tx)}%;background:${c};color:${ink(c.slice(1))}">${int?'INT':fum?'FUMBLE':'DOWNS'}</span>`;
 }
 function driveHTML(g,b){
   const dr=b.dr;if(!dr)return emptyField(g);
