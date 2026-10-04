@@ -215,6 +215,10 @@ td.n{font-family:var(--mono);font-size:13px}
 .turf .yl{position:absolute;top:0;bottom:0;width:1px;background:var(--line)}
 .turf .yl.mid{background:var(--muted);opacity:.6}
 .turf .drv{position:absolute;top:0;bottom:0;opacity:.28}
+.turf .karc{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.karc .ka{fill:none;stroke:var(--fg);stroke-width:2;stroke-dasharray:5 4;opacity:.75;vector-effect:non-scaling-stroke}
+.karc .kr{fill:none;stroke:var(--fg);stroke-width:2;stroke-dasharray:1 4;stroke-linecap:round;opacity:.75;vector-effect:non-scaling-stroke}
+.karc .kl{fill:var(--fg);opacity:.75}
 .turf .los{position:absolute;top:0;bottom:0;width:3px;margin-left:-1.5px;background:#2f6fe0}
 .turf .fdl{position:absolute;top:0;bottom:0;width:3px;margin-left:-1.5px;background:#f2c230}
 .pin{position:absolute;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;z-index:1}
@@ -515,6 +519,7 @@ function kickHTML(g,b){
 const sgn=n=>(n>0?'+':'')+n;
 const penTxt=t=>esc(t).replace(/PENALTY on[\s\S]*$/,'<span class="pen">$&</span>');
 function ydsCell(x){
+  if(/^(punt|kickoff)/i.test(x.type||''))return '';
   const p=x.pen;
   if(p&&p.net!=null){
     if(p.np||p.eff===p.net)return `<span class="ypen">${p.net?sgn(p.net):'0'}</span>`;
@@ -526,6 +531,13 @@ function playRow(x){
   const m=(x.q?(x.q>4?'OT':'Q'+x.q)+' '+(x.clk||''):'')+(x.q&&x.dd?' · ':'')+(x.dd||'');
   return `<div>${m?`<p class="pm">${esc(m)}</p>`:''}<p>${penTxt(x.text)}</p></div><span class="py">${ydsCell(x)}</span>`;
 }
+// dashed arc from the kick spot to where the ball came down, dotted return to the new spot (yards incl. end zones: 0-120)
+function kickSVG(lp,O,A,show){
+  const n=/(?:punts|kicks) (\d+) yards?/i.exec(lp.text||''),sy=(lp.st||{}).yl,ey=(lp.en||{}).yl;
+  if(!show||!/^(punt|kickoff)/i.test(lp.type||'')||!n||sy==null)return '';
+  const dir=O===A?-1:1,X=y=>Math.max(0,Math.min(120,y+10)),sx=X(100-sy),lx=X(100-sy+dir*+n[1]),ex=ey==null?null:X(100-ey),mx=(sx+lx)/2;
+  return `<svg class="karc" viewBox="0 0 120 64" preserveAspectRatio="none" aria-hidden="true"><path d="M${sx} 46Q${mx} -14 ${lx} 46" class="ka"/><circle cx="${lx}" cy="46" r="1.2" class="kl"/>${ex!=null&&Math.abs(ex-lx)>.5?`<path d="M${lx} 46H${ex}" class="kr"/>`:''}</svg>`;
+}
 function driveHTML(g,b){
   const dr=b.dr;if(!dr)return '';
   const [A,H]=g.teams,dlp=dr.lp||{},sl=g.sit&&g.sit.lp;
@@ -533,7 +545,7 @@ function driveHTML(g,b){
   // the scoreboard feed often posts the newest play 5-25s before the summary does
   let lp=dlp,prev=dr.prev||[],wpH=b.wp,desc=dr.desc;
   if(sl&&sl.text&&dlp.id&&+sl.id>+dlp.id&&sl.tid===dr.tid&&!/timeout|two-minute|end (of )?(period|quarter|half|game)/i.test(sl.type)){
-    prev=prev.concat([dlp]);lp={id:sl.id,type:sl.type,yd:sl.yd,text:sl.text,pen:/PENALTY on/.test(sl.text)?{}:null};
+    prev=prev.concat([dlp]);lp={id:sl.id,type:sl.type,yd:sl.yd,text:sl.text,st:{yl:sl.syl},en:{yl:sl.eyl},pen:/PENALTY on/.test(sl.text)?{}:null};
     if(sl.hwp!=null)wpH=sl.hwp;if(sl.ddesc)desc=sl.ddesc;
   }
   const pid=(s&&s.poss)||dr.tid,O=pid===A.id?A:pid===H.id?H:null;
@@ -552,13 +564,14 @@ function driveHTML(g,b){
       <div class="pin" style="left:${fx(bx)}%">${badge(O)}</div>
       <div class="turf">${ez(A,'l')}${ez(H,'r')}${lines}
         ${sx!=null&&!newDrive?`<i class="drv" style="left:${fx(Math.min(sx,bx))}%;width:${Math.abs(bx-sx)/1.2}%;background:${tcol(O)}"></i>`:''}
+        ${kickSVG(lp,O,A,newDrive||!prev.length)}
         <i class="los" style="left:${fx(bx)}%"></i>${!s.sdd||!s.dist||/goal/i.test(s.sdd)?'':`<i class="fdl" style="left:${fx(fd)}%"></i>`}</div>
       <div class="ynum"><span style="left:${fx(0)}%">${esc(A.ab)}</span>${nums}<span style="left:${fx(100)}%">${esc(H.ab)}</span></div></div>`;
   }
   let play='';
   if(lp.text){
     const wp=wpH==null?null:Math.round((O===H?wpH:1-wpH)*1000)/10;
-    const cur={q:lp.q,clk:lp.clk,dd:(lp.st||{}).dd||'',text:lp.text,yd:lp.yd,pen:lp.pen};
+    const cur={type:lp.type,q:lp.q,clk:lp.clk,dd:(lp.st||{}).dd||'',text:lp.text,yd:lp.yd,pen:lp.pen};
     play=`<div class="lplay"><div class="lph"><b>${esc(lp.type)}</b>${wp!=null?`<span class="wp">Win % ${badge(O)} <b>${wp.toFixed(1)}</b></span>`:''}<span class="tag">Last play</span></div>
       ${newDrive?`<p class="pdh">${badge(DT)} ${esc(DT.name)} drive${desc?' · '+esc(desc):''}</p>`:''}
       <div class="lpr">${playRow(cur)}</div>
@@ -678,7 +691,7 @@ async function refreshCurrent(){
 /* live scores: works only where the viewer allows outside requests, else the snapshot stays */
 let liveOK=false;
 function mapTeam(c){const t=c.team;return{id:t.id,ab:t.abbreviation,loc:t.location,name:t.name,color:t.color||'333333',alt:t.alternateColor||'999999',score:c.score,win:c.winner,home:c.homeAway==='home',rec:((c.records||[{}])[0]||{}).summary,ls:(c.linescores||[]).map(l=>l.displayValue)}}
-function mapEv(e,w){const c=e.competitions[0],o=(c.odds||[{}])[0]||{},st=e.status;return{id:e.id,w,date:e.date,state:st.type.state,per:st.period,stat:st.type.shortDetail,teams:c.competitors.map(mapTeam).sort((a,b)=>a.home-b.home),venue:(c.venue||{}).fullName,tv:(c.broadcasts||[]).flatMap(g=>g.names||[]),odds:o.details,ou:o.overUnder,sit:st.type.state==='in'&&c.situation&&c.situation.downDistanceText?{poss:c.situation.possession,dd:c.situation.downDistanceText,rz:!!c.situation.isRedZone,yl:c.situation.yardLine,dist:c.situation.distance,sdd:c.situation.shortDownDistanceText,pt:c.situation.possessionText,lp:c.situation.lastPlay?{id:c.situation.lastPlay.id,type:(c.situation.lastPlay.type||{}).text||'',text:(c.situation.lastPlay.text||'').trim(),yd:c.situation.lastPlay.statYardage,tid:(c.situation.lastPlay.team||{}).id,hwp:(c.situation.lastPlay.probability||{}).homeWinPercentage,ddesc:(c.situation.lastPlay.drive||{}).description}:null}:null}}
+function mapEv(e,w){const c=e.competitions[0],o=(c.odds||[{}])[0]||{},st=e.status;return{id:e.id,w,date:e.date,state:st.type.state,per:st.period,stat:st.type.shortDetail,teams:c.competitors.map(mapTeam).sort((a,b)=>a.home-b.home),venue:(c.venue||{}).fullName,tv:(c.broadcasts||[]).flatMap(g=>g.names||[]),odds:o.details,ou:o.overUnder,sit:st.type.state==='in'&&c.situation&&c.situation.downDistanceText?{poss:c.situation.possession,dd:c.situation.downDistanceText,rz:!!c.situation.isRedZone,yl:c.situation.yardLine,dist:c.situation.distance,sdd:c.situation.shortDownDistanceText,pt:c.situation.possessionText,lp:c.situation.lastPlay?{id:c.situation.lastPlay.id,type:(c.situation.lastPlay.type||{}).text||'',text:(c.situation.lastPlay.text||'').trim(),yd:c.situation.lastPlay.statYardage,tid:(c.situation.lastPlay.team||{}).id,hwp:(c.situation.lastPlay.probability||{}).homeWinPercentage,ddesc:(c.situation.lastPlay.drive||{}).description,syl:(c.situation.lastPlay.start||{}).yardLine,eyl:(c.situation.lastPlay.end||{}).yardLine}:null}:null}}
 async function refreshLive(){
   const w=wk+1;
   try{
