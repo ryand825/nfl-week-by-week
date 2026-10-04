@@ -532,8 +532,14 @@ function ydsCell(x){
 }
 function driveHTML(g,b){
   const dr=b.dr;if(!dr)return '';
-  const [A,H]=g.teams,lp=dr.lp||{};
-  const s=g.sit&&g.sit.yl!=null?g.sit:lp.en&&lp.en.yl!=null?lp.en:null;
+  const [A,H]=g.teams,dlp=dr.lp||{},sl=g.sit&&g.sit.lp;
+  const s=g.sit&&g.sit.yl!=null?g.sit:dlp.en&&dlp.en.yl!=null?dlp.en:null;
+  // the scoreboard feed often posts the newest play 5-25s before the summary does
+  let lp=dlp,prev=dr.prev||[],wpH=b.wp,desc=dr.desc;
+  if(sl&&sl.text&&dlp.id&&+sl.id>+dlp.id&&sl.tid===dr.tid&&!/timeout|two-minute|end (of )?(period|quarter|half|game)/i.test(sl.type)){
+    prev=prev.concat([dlp]);lp={id:sl.id,type:sl.type,yd:sl.yd,text:sl.text,ppl:[],pen:/PENALTY on/.test(sl.text)?{}:null};
+    if(sl.hwp!=null)wpH=sl.hwp;if(sl.ddesc)desc=sl.ddesc;
+  }
   const pid=(s&&s.poss)||dr.tid,O=pid===A.id?A:pid===H.id?H:null;
   if(!O)return '';
   const goR=O===A,bx=s?100-s.yl:0;
@@ -554,7 +560,7 @@ function driveHTML(g,b){
   let play='';
   if(lp.text){
     const ttl=lp.yd&&/^(Rush|Pass Reception)$/.test(lp.type)?`${lp.yd}-yd ${lp.type==='Rush'?'Run':'Pass'}`:lp.type;
-    const wp=b.wp==null?null:Math.round((O===H?b.wp:1-b.wp)*1000)/10;
+    const wp=wpH==null?null:Math.round((O===H?wpH:1-wpH)*1000)/10;
     const pc=pp=>{const t=Object.values(teamsById).find(x=>x.ab===pp.ab)||O,tp=(b.pl||[]).find(x=>x.id===t.id);
       let c,r,want;for(const [cat,w] of PSTAT[pp.ty]){const cc=tp&&tp.cats.find(x=>x.n===cat),rr=cc&&cc.a.find(x=>x[3]===pp.id);if(rr){c=cc;r=rr;want=w;break}}
       const cells=r?want.map(l=>{const i=c.l.indexOf(l);return i<0?'':`<div><small>${esc(l)}</small><b>${esc(r[2][i])}</b></div>`}).join(''):'';
@@ -563,10 +569,10 @@ function driveHTML(g,b){
     play=`<div class="lplay"><div class="lph"><b>${esc(ttl)}</b>${lp.pen?`<span class="flag">${esc(penLab(lp.pen))}</span>`:''}${wp!=null?`<span class="wp">Win % ${badge(O)} <b>${wp.toFixed(1)}</b></span>`:''}<span class="tag">Last play</span></div>
       <p>${penTxt(lp.text)}</p>${ppl.length?`<div class="pcs">${ppl.filter((x,i)=>ppl.findIndex(y=>y.id===x.id)===i).map(pc).join('')}</div>`:''}
       ${lp.st&&lp.st.dd?`<p class="lpf">${lp.q?esc((lp.q>4?'OT':'Q'+lp.q)+' '+lp.clk)+' · ':''}${esc(lp.st.dd)}</p>`:''}
-      ${(dr.prev||[]).length?`<details class="dpx"${drvOpen?' open':''}><summary><span class="o">Show ${dr.prev.length} earlier play${dr.prev.length>1?'s':''} this drive</span><span class="c">Hide earlier plays</span></summary><ol class="dplays">${dr.prev.slice().reverse().map(x=>`<li><div><p class="pm">${x.q?esc((x.q>4?'OT':'Q'+x.q)+' '+x.clk):''}${x.q&&x.dd?' · ':''}${esc(x.dd)}</p><p>${penTxt(x.text)}</p></div><span class="py">${ydsCell(x)}</span></li>`).join('')}</ol></details>`:''}</div>`;
+      ${(prev||[]).length?`<details class="dpx"${drvOpen?' open':''}><summary><span class="o">Show ${prev.length} earlier play${prev.length>1?'s':''} this drive</span><span class="c">Hide earlier plays</span></summary><ol class="dplays">${prev.slice().reverse().map(x=>`<li><div><p class="pm">${x.q?esc((x.q>4?'OT':'Q'+x.q)+' '+x.clk):''}${x.q&&x.dd?' · ':''}${esc(x.dd)}</p><p>${penTxt(x.text)}</p></div><span class="py">${ydsCell(x)}</span></li>`).join('')}</ol></details>`:''}</div>`;
   }
   return `<div class="sec drive">${s&&(s.sdd||s.pt)?`<div class="dd"><div><small>Down</small><b>${esc(s.sdd||'')}</b></div><div><small>Ball on</small><b>${esc(s.pt||'')}</b></div></div>`:''}
-    ${field}<div class="dh">${badge(O)}<div><b>Current drive</b><small>${esc(dr.desc)}</small></div></div>${play}</div>`;
+    ${field}<div class="dh">${badge(O)}<div><b>Current drive</b><small>${esc(desc)}</small></div></div>${play}</div>`;
 }
 function openGame(id,trigger,re){
   const g=allGames().find(x=>x.id===id);if(!g)return;
@@ -677,7 +683,7 @@ async function refreshCurrent(){
 /* live scores: works only where the viewer allows outside requests, else the snapshot stays */
 let liveOK=false;
 function mapTeam(c){const t=c.team;return{id:t.id,ab:t.abbreviation,loc:t.location,name:t.name,color:t.color||'333333',alt:t.alternateColor||'999999',score:c.score,win:c.winner,home:c.homeAway==='home',rec:((c.records||[{}])[0]||{}).summary,ls:(c.linescores||[]).map(l=>l.displayValue)}}
-function mapEv(e,w){const c=e.competitions[0],o=(c.odds||[{}])[0]||{},st=e.status;return{id:e.id,w,date:e.date,state:st.type.state,per:st.period,stat:st.type.shortDetail,teams:c.competitors.map(mapTeam).sort((a,b)=>a.home-b.home),venue:(c.venue||{}).fullName,tv:(c.broadcasts||[]).flatMap(g=>g.names||[]),odds:o.details,ou:o.overUnder,sit:st.type.state==='in'&&c.situation&&c.situation.downDistanceText?{poss:c.situation.possession,dd:c.situation.downDistanceText,rz:!!c.situation.isRedZone,yl:c.situation.yardLine,dist:c.situation.distance,sdd:c.situation.shortDownDistanceText,pt:c.situation.possessionText,lp:c.situation.lastPlay?{id:c.situation.lastPlay.id,ath:(c.situation.lastPlay.athletesInvolved||[]).map(a=>({id:a.id,n:a.displayName||'',j:a.jersey||'',pos:a.position||'',img:(a.headshot||{}).href||'',tid:(a.team||{}).id}))}:null}:null}}
+function mapEv(e,w){const c=e.competitions[0],o=(c.odds||[{}])[0]||{},st=e.status;return{id:e.id,w,date:e.date,state:st.type.state,per:st.period,stat:st.type.shortDetail,teams:c.competitors.map(mapTeam).sort((a,b)=>a.home-b.home),venue:(c.venue||{}).fullName,tv:(c.broadcasts||[]).flatMap(g=>g.names||[]),odds:o.details,ou:o.overUnder,sit:st.type.state==='in'&&c.situation&&c.situation.downDistanceText?{poss:c.situation.possession,dd:c.situation.downDistanceText,rz:!!c.situation.isRedZone,yl:c.situation.yardLine,dist:c.situation.distance,sdd:c.situation.shortDownDistanceText,pt:c.situation.possessionText,lp:c.situation.lastPlay?{id:c.situation.lastPlay.id,type:(c.situation.lastPlay.type||{}).text||'',text:(c.situation.lastPlay.text||'').trim(),yd:c.situation.lastPlay.statYardage,tid:(c.situation.lastPlay.team||{}).id,hwp:(c.situation.lastPlay.probability||{}).homeWinPercentage,ddesc:(c.situation.lastPlay.drive||{}).description,ath:(c.situation.lastPlay.athletesInvolved||[]).map(a=>({id:a.id,n:a.displayName||'',j:a.jersey||'',pos:a.position||'',img:(a.headshot||{}).href||'',tid:(a.team||{}).id}))}:null}:null}}
 async function refreshLive(){
   const w=wk+1;
   try{
