@@ -610,7 +610,7 @@ function turnoverHTML(lp,DT,O,A,H,sx,ey,res){
   const ty=m?txtSpot(m[1],m[2],A,H):ey;if(ty==null)return '';
   const X=y=>10+(100-y),lx=X(ly),tx=X(ty),ex=ey!=null?X(ey):null,c=tcol(O),fx_=v=>(v/1.2);
   const old=sx!=null?`<i class="drv old" style="left:${fx(Math.min(sx,100-ly))}%;width:${Math.abs(100-ly-sx)/1.2}%;${drvStyle(DT,1)}"></i>`:'';
-  const svg=`<svg class="karc" viewBox="0 0 120 64" preserveAspectRatio="none" aria-hidden="true">${int?`<path d="M${lx} 44Q${(lx+tx)/2} 4 ${tx} 44" class="ka"/>`:''}<circle cx="${tx}" cy="44" r="1.4" class="kl"/>${ex!=null&&Math.abs(ex-tx)>.5?`<path d="M${tx} 44H${ex}" class="kr"/>`:''}</svg>`;
+  const svg=`<svg class="karc" viewBox="0 0 120 64" preserveAspectRatio="none" aria-hidden="true">${int?`<path d="M${lx} 44Q${(lx+tx)/2} 4 ${tx} 44" class="ka"/>`:''}${dwn?'':`<circle cx="${tx}" cy="44" r="1.4" class="kl"/>${ex!=null&&Math.abs(ex-tx)>.5?`<path d="M${tx} 44H${ex}" class="kr"/>`:''}`}</svg>`;
   return old+svg+`<span class="tom" style="left:${fx_(tx)}%;background:${c};color:${ink(c.slice(1))}">${int?'INT':fum?'FUMBLE':'DOWNS'}</span>`;
 }
 function driveHTML(g,b){
