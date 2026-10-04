@@ -225,8 +225,6 @@ td.n{font-family:var(--mono);font-size:13px}
 .lph .wp .logo{width:20px;height:20px}
 .lph .wp b{color:var(--fg);font:500 13px var(--mono)}
 .lph .tag{font:600 12px var(--body);background:var(--surface2);border-radius:4px;padding:2px 7px}
-.lplay p{margin:6px 0 0;font-size:14px;color:var(--muted)}
-.lplay .lpf{font:400 12px var(--mono);margin-top:10px}
 .dpx{margin-top:10px;border-top:1px solid var(--line)}
 .dpx summary{cursor:pointer;padding:10px 0 0;font:600 13px var(--body);color:var(--accent-text);list-style:none}
 .dpx summary::-webkit-details-marker{display:none}
@@ -234,24 +232,13 @@ td.n{font-family:var(--mono);font-size:13px}
 .dpx[open] summary::before{transform:rotate(90deg)}
 .dpx .c,.dpx[open] .o{display:none}.dpx[open] .c{display:inline}
 .dplays{list-style:none;margin:10px 0 0;padding:0;border-top:1px solid var(--line)}
-.dplays li{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;padding:9px 0}
+.dplays li,.lpr{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;padding:9px 0}
+.lplay p{margin:0;font-size:14px}
 .dplays li+li{border-top:1px solid var(--line)}
-.lplay .dplays p{margin:0;color:var(--fg)}
-.lplay .dplays .pm{font:400 12px var(--mono);color:var(--muted);margin-bottom:2px}
-.dplays .py{font:500 13px var(--mono);white-space:nowrap;padding-top:16px;text-align:right}
-.lplay .pen,.dplays .ypen{color:var(--accent-text)}
+.lplay .pm{font:400 12px var(--mono);color:var(--muted);margin-bottom:2px}
+.lplay .py{font:500 13px var(--mono);white-space:nowrap;padding-top:16px;text-align:right}
+.lplay .pen,.lplay .ypen{color:var(--accent-text)}
 
-.pcs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px;margin-top:12px}
-.pc{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--bg)}
-.ph{display:flex;align-items:center;gap:10px}
-.ph .hs{width:44px;height:44px;border-radius:50%;object-fit:cover;object-position:top;background:var(--surface2);flex:0 0 auto}
-.ph b{display:block;font-weight:600}
-.ph small{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)}
-.ph small .logo{width:16px;height:16px}
-.ps{display:flex;margin-top:10px;padding-top:8px;border-top:1px solid var(--line);text-align:center}
-.ps div{flex:1}.ps div+div{border-left:1px solid var(--line)}
-.ps small{display:block;font:500 10px var(--mono);letter-spacing:.06em;color:var(--muted)}
-.ps b{font:500 15px var(--mono)}
 .sec h4::after{content:"";flex:1;height:1px;background:var(--line)}
 .cmp{display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;align-items:center;font-variant-numeric:tabular-nums}
 .cmp .v{font:500 13px var(--mono)}
@@ -509,8 +496,6 @@ function injHTML(g,b){
 }
 const fx=y=>(10+Math.max(0,Math.min(100,y)))/1.2;
 const tcol=t=>'#'+(t.color==='000000'?t.alt:t.color);
-const PSTAT={passer:[['passing',['C/ATT','YDS','TD','INT']]],rusher:[['rushing',['CAR','YDS','TD','LONG']]],receiver:[['receiving',['REC','YDS','TD','TGTS']]],passDefender:[['interceptions',['INT','YDS','TD']]],
-  fumbler:[['fumbles',['FUM','LOST','REC']]],recoverer:[['fumbles',['FUM','LOST','REC']],['defensive',['TOT','SOLO','SACKS']]]};
 function awaitKick(g,b){
   if(/halftime/i.test(g.stat))return true;
   const lq=b.dr&&b.dr.lp&&b.dr.lp.q;
@@ -531,6 +516,10 @@ function ydsCell(x){
   }
   return x.yd?esc(sgn(x.yd)):'';
 }
+function playRow(x){
+  const m=(x.q?(x.q>4?'OT':'Q'+x.q)+' '+(x.clk||''):'')+(x.q&&x.dd?' · ':'')+(x.dd||'');
+  return `<div>${m?`<p class="pm">${esc(m)}</p>`:''}<p>${penTxt(x.text)}</p></div><span class="py">${ydsCell(x)}</span>`;
+}
 function driveHTML(g,b){
   const dr=b.dr;if(!dr)return '';
   const [A,H]=g.teams,dlp=dr.lp||{},sl=g.sit&&g.sit.lp;
@@ -538,7 +527,7 @@ function driveHTML(g,b){
   // the scoreboard feed often posts the newest play 5-25s before the summary does
   let lp=dlp,prev=dr.prev||[],wpH=b.wp,desc=dr.desc;
   if(sl&&sl.text&&dlp.id&&+sl.id>+dlp.id&&sl.tid===dr.tid&&!/timeout|two-minute|end (of )?(period|quarter|half|game)/i.test(sl.type)){
-    prev=prev.concat([dlp]);lp={id:sl.id,type:sl.type,yd:sl.yd,text:sl.text,ppl:[],pen:/PENALTY on/.test(sl.text)?{}:null};
+    prev=prev.concat([dlp]);lp={id:sl.id,type:sl.type,yd:sl.yd,text:sl.text,pen:/PENALTY on/.test(sl.text)?{}:null};
     if(sl.hwp!=null)wpH=sl.hwp;if(sl.ddesc)desc=sl.ddesc;
   }
   const pid=(s&&s.poss)||dr.tid,O=pid===A.id?A:pid===H.id?H:null;
@@ -560,17 +549,11 @@ function driveHTML(g,b){
   }
   let play='';
   if(lp.text){
-    const ttl=lp.yd&&/^(Rush|Pass Reception)$/.test(lp.type)?`${lp.yd}-yd ${lp.type==='Rush'?'Run':'Pass'}`:lp.type;
     const wp=wpH==null?null:Math.round((O===H?wpH:1-wpH)*1000)/10;
-    const pc=pp=>{const t=Object.values(teamsById).find(x=>x.ab===pp.ab)||O,tp=(b.pl||[]).find(x=>x.id===t.id);
-      let c,r,want;for(const [cat,w] of PSTAT[pp.ty]){const cc=tp&&tp.cats.find(x=>x.n===cat),rr=cc&&cc.a.find(x=>x[3]===pp.id);if(rr){c=cc;r=rr;want=w;break}}
-      const cells=r?want.map(l=>{const i=c.l.indexOf(l);return i<0?'':`<div><small>${esc(l)}</small><b>${esc(r[2][i])}</b></div>`}).join(''):'';
-      return `<div class="pc"><div class="ph">${pp.img?`<img class="hs" src="${esc(pp.img)}" alt="" onerror="this.remove()">`:''}<div><b>${esc(pp.n)}</b><small>${badge(t)} ${esc(t.name)}${pp.pos?', '+esc(pp.pos):''}${pp.j?', #'+esc(pp.j):''}</small></div></div>${cells?`<div class="ps">${cells}</div>`:''}</div>`};
-    const intc=/intercept/i.test(lp.type),fum=/fumble/i.test(lp.type+' '+lp.text),ppl=lp.ppl&&lp.ppl.length?lp.ppl:g.sit&&g.sit.lp&&g.sit.lp.id===lp.id?g.sit.lp.ath.filter(a=>/^(QB|RB|WR|TE|FB|HB)$/.test(a.pos)?a.tid===O.id||intc||fum:intc||fum).map(a=>Object.assign({},a,{ab:(teamsById[a.tid]||O).ab,ty:!/^(QB|RB|WR|TE|FB|HB)$/.test(a.pos)?(intc?'passDefender':'recoverer'):/rush/i.test(lp.type)?'rusher':a.pos==='QB'?'passer':'receiver'})):[];
-    play=`<div class="lplay"><div class="lph"><b>${esc(ttl)}</b>${wp!=null?`<span class="wp">Win % ${badge(O)} <b>${wp.toFixed(1)}</b></span>`:''}<span class="tag">Last play</span></div>
-      <p>${penTxt(lp.text)}</p>${ppl.length?`<div class="pcs">${ppl.filter((x,i)=>ppl.findIndex(y=>y.id===x.id)===i).map(pc).join('')}</div>`:''}
-      ${lp.st&&lp.st.dd?`<p class="lpf">${lp.q?esc((lp.q>4?'OT':'Q'+lp.q)+' '+lp.clk)+' · ':''}${esc(lp.st.dd)}</p>`:''}
-      ${(prev||[]).length?`<details class="dpx"${drvOpen?' open':''}><summary><span class="o">Show ${prev.length} earlier play${prev.length>1?'s':''} this drive</span><span class="c">Hide earlier plays</span></summary><ol class="dplays">${prev.slice().reverse().map(x=>`<li><div><p class="pm">${x.q?esc((x.q>4?'OT':'Q'+x.q)+' '+x.clk):''}${x.q&&x.dd?' · ':''}${esc(x.dd)}</p><p>${penTxt(x.text)}</p></div><span class="py">${ydsCell(x)}</span></li>`).join('')}</ol></details>`:''}</div>`;
+    const cur={q:lp.q,clk:lp.clk,dd:(lp.st||{}).dd||'',text:lp.text,yd:lp.yd,pen:lp.pen};
+    play=`<div class="lplay"><div class="lph"><b>${esc(lp.type)}</b>${wp!=null?`<span class="wp">Win % ${badge(O)} <b>${wp.toFixed(1)}</b></span>`:''}<span class="tag">Last play</span></div>
+      <div class="lpr">${playRow(cur)}</div>
+      ${(prev||[]).length?`<details class="dpx"${drvOpen?' open':''}><summary><span class="o">Show ${prev.length} earlier play${prev.length>1?'s':''} this drive</span><span class="c">Hide earlier plays</span></summary><ol class="dplays">${prev.slice().reverse().map(x=>`<li>${playRow(x)}</li>`).join('')}</ol></details>`:''}</div>`;
   }
   return `<div class="sec drive">${s&&(s.sdd||s.pt)?`<div class="dd"><div><small>Down</small><b>${esc(s.sdd||'')}</b></div><div><small>Ball on</small><b>${esc(s.pt||'')}</b></div></div>`:''}
     ${field}<div class="dh">${badge(O)}<div><b>Current drive</b><small>${esc(desc)}</small></div></div>${play}</div>`;
@@ -643,15 +626,14 @@ function driveOf(d){
   const pv=((d.drives||{}).previous||[]).slice(-1)[0]||{},last=Math.max(+((ps.slice(-1)[0]||{}).id||0),+(((pv.plays||[]).slice(-1)[0]||{}).id||0));
   return{tid:(cd.team||{}).id,desc:cd.description||'',start:(cd.start||{}).yardLine,last,
     prev:real.filter(x=>x!==lp).map(x=>({type:(x.type||{}).text||'',yd:x.statYardage,pen:penOf(x),text:(x.text||'').trim(),q:(x.period||{}).number,clk:(x.clock||{}).displayValue||'',dd:(x.start||{}).downDistanceText||''})),
-    lp:lp?{id:lp.id,type:(lp.type||{}).text||'',yd:lp.statYardage,pen:penOf(lp),text:(lp.text||'').trim(),q:(lp.period||{}).number,clk:(lp.clock||{}).displayValue||'',st:sp(lp.start),en:sp(lp.end),
-      ppl:(lp.participants||[]).filter(x=>['passer','rusher','receiver','fumbler','recoverer'].includes(x.type)||x.type==='passDefender'&&/intercept/i.test((lp.type||{}).text||'')).map(x=>{const a=x.athlete||{};return{id:a.id,n:a.displayName||'',j:a.jersey||'',pos:(a.position||{}).abbreviation||'',img:(a.headshot||{}).href||'',ab:(a.team||{}).abbreviation||'',ty:x.type}})}:null};
+    lp:lp?{id:lp.id,type:(lp.type||{}).text||'',yd:lp.statYardage,pen:penOf(lp),text:(lp.text||'').trim(),q:(lp.period||{}).number,clk:(lp.clock||{}).displayValue||'',st:sp(lp.start),en:sp(lp.end)}:null};
 }
 const boxAt={};
 async function fetchBox(id){
   try{
     const d=await jget(API+'summary?event='+id);
     BOX[id]={bt:((d.boxscore||{}).teams||[]).map(t=>({id:t.team.id,s:t.statistics.map(s=>[s.label,s.displayValue])})),
-      pl:((d.boxscore||{}).players||[]).map(t=>({id:t.team.id,cats:t.statistics.map(c=>({n:c.name,l:c.labels,a:c.athletes.map(a=>[a.athlete.displayName,a.athlete.jersey,a.stats,a.athlete.id])}))})),
+      pl:((d.boxscore||{}).players||[]).map(t=>({id:t.team.id,cats:t.statistics.map(c=>({n:c.name,l:c.labels,a:c.athletes.map(a=>[a.athlete.displayName,a.athlete.jersey,a.stats])}))})),
       sp:(d.scoringPlays||[]).map(p=>({q:(p.period||{}).number,clock:(p.clock||{}).displayValue,team:p.team.abbreviation,tid:p.team.id,ty:(p.scoringType||{}).displayName||'',text:p.text,a:p.awayScore,h:p.homeScore})),
       dr:driveOf(d),first:((((d.drives||{}).previous||[])[0]||{}).team||{}).id||null,wp:((d.winprobability||[]).slice(-1)[0]||{}).homeWinPercentage??null,
       inj:(d.injuries||[]).map(t=>({id:t.team.id,items:(t.injuries||[]).map(i=>{const x=i.details||{},a=i.athlete||{};return{n:a.displayName||'',pos:(a.position||{}).abbreviation||'',j:a.jersey||'',s:i.status,b:x.type||'',d:x.detail||'',side:x.side||'',r:x.returnDate||''}})}))};
@@ -687,7 +669,7 @@ async function refreshCurrent(){
 /* live scores: works only where the viewer allows outside requests, else the snapshot stays */
 let liveOK=false;
 function mapTeam(c){const t=c.team;return{id:t.id,ab:t.abbreviation,loc:t.location,name:t.name,color:t.color||'333333',alt:t.alternateColor||'999999',score:c.score,win:c.winner,home:c.homeAway==='home',rec:((c.records||[{}])[0]||{}).summary,ls:(c.linescores||[]).map(l=>l.displayValue)}}
-function mapEv(e,w){const c=e.competitions[0],o=(c.odds||[{}])[0]||{},st=e.status;return{id:e.id,w,date:e.date,state:st.type.state,per:st.period,stat:st.type.shortDetail,teams:c.competitors.map(mapTeam).sort((a,b)=>a.home-b.home),venue:(c.venue||{}).fullName,tv:(c.broadcasts||[]).flatMap(g=>g.names||[]),odds:o.details,ou:o.overUnder,sit:st.type.state==='in'&&c.situation&&c.situation.downDistanceText?{poss:c.situation.possession,dd:c.situation.downDistanceText,rz:!!c.situation.isRedZone,yl:c.situation.yardLine,dist:c.situation.distance,sdd:c.situation.shortDownDistanceText,pt:c.situation.possessionText,lp:c.situation.lastPlay?{id:c.situation.lastPlay.id,type:(c.situation.lastPlay.type||{}).text||'',text:(c.situation.lastPlay.text||'').trim(),yd:c.situation.lastPlay.statYardage,tid:(c.situation.lastPlay.team||{}).id,hwp:(c.situation.lastPlay.probability||{}).homeWinPercentage,ddesc:(c.situation.lastPlay.drive||{}).description,ath:(c.situation.lastPlay.athletesInvolved||[]).map(a=>({id:a.id,n:a.displayName||'',j:a.jersey||'',pos:a.position||'',img:(a.headshot||{}).href||'',tid:(a.team||{}).id}))}:null}:null}}
+function mapEv(e,w){const c=e.competitions[0],o=(c.odds||[{}])[0]||{},st=e.status;return{id:e.id,w,date:e.date,state:st.type.state,per:st.period,stat:st.type.shortDetail,teams:c.competitors.map(mapTeam).sort((a,b)=>a.home-b.home),venue:(c.venue||{}).fullName,tv:(c.broadcasts||[]).flatMap(g=>g.names||[]),odds:o.details,ou:o.overUnder,sit:st.type.state==='in'&&c.situation&&c.situation.downDistanceText?{poss:c.situation.possession,dd:c.situation.downDistanceText,rz:!!c.situation.isRedZone,yl:c.situation.yardLine,dist:c.situation.distance,sdd:c.situation.shortDownDistanceText,pt:c.situation.possessionText,lp:c.situation.lastPlay?{id:c.situation.lastPlay.id,type:(c.situation.lastPlay.type||{}).text||'',text:(c.situation.lastPlay.text||'').trim(),yd:c.situation.lastPlay.statYardage,tid:(c.situation.lastPlay.team||{}).id,hwp:(c.situation.lastPlay.probability||{}).homeWinPercentage,ddesc:(c.situation.lastPlay.drive||{}).description}:null}:null}}
 async function refreshLive(){
   const w=wk+1;
   try{
