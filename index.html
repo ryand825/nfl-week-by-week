@@ -553,20 +553,27 @@ function driveHTML(g,b){
   if(!O)return '';
   // the summary keeps the old drive until the new team runs a play (after a punt, turnover or score)
   const DT=dr.tid===A.id?A:dr.tid===H.id?H:O,newDrive=DT!==O;
-  const goR=O===A,bx=s?100-s.yl:0;
+  // after a score ESPN has no spot until the kickoff: show where the scoring drive ended instead
+  let F=s,P=O;
+  if(!s&&g.sit&&lp.text){
+    const t=lp.type||'',ky=(lp.st||{}).yl,ey=(lp.en||{}).yl;
+    const y=/touchdown/i.test(t)?(DT===A?0:100):/field goal|extra point|two-point/i.test(t)&&ky!=null?ky:ey;
+    if(y!=null){F={yl:y};P=DT}
+  }
+  const goR=O===A,bx=F?100-F.yl:0;
   let field='';
-  if(s){
-    const fd=Math.max(0,Math.min(100,goR?bx+(+s.dist||0):bx-(+s.dist||0)));
+  if(F){
+    const fd=s?Math.max(0,Math.min(100,goR?bx+(+s.dist||0):bx-(+s.dist||0))):0;
     const sy=dr.start!=null?dr.start:lp!==dlp&&!/kickoff|punt/i.test(lp.type||'')?(lp.st||{}).yl:null,sx=sy!=null?100-sy:null;
     const lines=[1,2,3,4,5,6,7,8,9].map(i=>`<i class="yl${i===5?' mid':''}" style="left:${fx(i*10)}%"></i>`).join('');
     const nums=[10,20,30,40,50,40,30,20,10].map((n,i)=>`<span style="left:${fx((i+1)*10)}%">${n}</span>`).join('');
     const ez=(t,side)=>`<div class="ez ${side}" style="background:${tcol(t)};color:${ink(t.color==='000000'?t.alt:t.color)}"><span${t.name.length>8?' style="font-size:10px"':''}>${esc(t.name)}</span></div>`;
-    field=`<div class="fld" role="img" aria-label="${esc(O.ab)} ball on ${esc(s.pt||'')}${s.dd?', '+esc(s.dd):''}">
-      <div class="pin" style="left:${fx(bx)}%">${badge(O)}</div>
+    field=`<div class="fld" role="img" aria-label="${s?`${esc(O.ab)} ball on ${esc(s.pt||'')}${s.dd?', '+esc(s.dd):''}`:`${esc(DT.ab)} drive: ${esc(lp.type)}`}">
+      <div class="pin" style="left:${fx(bx)}%">${badge(P)}</div>
       <div class="turf">${ez(A,'l')}${ez(H,'r')}${lines}
-        ${sx!=null&&!newDrive?`<i class="drv" style="left:${fx(Math.min(sx,bx))}%;width:${Math.abs(bx-sx)/1.2}%;background:${tcol(O)}"></i>`:''}
+        ${sx!=null&&(!newDrive||!s)?`<i class="drv" style="left:${fx(Math.min(sx,bx))}%;width:${Math.abs(bx-sx)/1.2}%;background:${tcol(DT)}"></i>`:''}
         ${kickSVG(lp,O,A,newDrive||!prev.length)}
-        <i class="los" style="left:${fx(bx)}%"></i>${!s.sdd||!s.dist||/goal/i.test(s.sdd)?'':`<i class="fdl" style="left:${fx(fd)}%"></i>`}</div>
+        ${s?`<i class="los" style="left:${fx(bx)}%"></i>${!s.sdd||!s.dist||/goal/i.test(s.sdd)?'':`<i class="fdl" style="left:${fx(fd)}%"></i>`}`:''}</div>
       <div class="ynum"><span style="left:${fx(0)}%">${esc(A.ab)}</span>${nums}<span style="left:${fx(100)}%">${esc(H.ab)}</span></div></div>`;
   }
   let play='';
