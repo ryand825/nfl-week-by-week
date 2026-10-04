@@ -558,7 +558,7 @@ function scoreBanner(lp,DT,A,H){
   const sc=scoreOf(lp,DT,A,H);if(!sc)return '';
   const {lab,S}=sc,x=lp.text||'';
   const tr=lab!=='Touchdown'?'':/extra point is good/i.test(x)?'Extra point good':/extra point is blocked/i.test(x)?'Extra point blocked':/extra point is/i.test(x)?'Extra point no good':
-    /two-point conversion attempt[\s\S]*attempt succeeds/i.test(x)?'2-pt conversion good':/two-point conversion attempt[\s\S]*attempt fails/i.test(x)?'2-pt conversion failed':'Extra point or 2-pt try next';
+    /two-point conversion attempt[\s\S]*attempt succeeds/i.test(x)?'2-pt conversion good':/two-point conversion attempt[\s\S]*attempt fails/i.test(x)?'2-pt conversion failed':'';
   const c=S.color==='000000'?S.alt:S.color;
   return `<div class="scb" style="background:#${esc(c)};color:${ink(c)}">${badge(S)}<div><b>${lab}</b>${tr?`<small>${tr}</small>`:''}</div></div>`;
 }
