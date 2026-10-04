@@ -639,11 +639,13 @@ function penOf(x){
 function driveOf(d){
   const cd=(d.drives||{}).current;if(!cd)return null;
   const ps=cd.plays||[],real=ps.filter(x=>!/timeout|two-minute|end (of )?(period|quarter|half|game)/i.test((x.type||{}).text||'')),lp=real.slice(-1)[0]||ps.slice(-1)[0],sp=x=>x?{down:x.down,dist:x.distance,yl:x.yardLine,dd:x.downDistanceText,sdd:x.shortDownDistanceText,pt:x.possessionText,poss:(x.team||{}).id}:{};
-  return{tid:(cd.team||{}).id,desc:cd.description||'',start:(cd.start||{}).yardLine,
+  const pv=((d.drives||{}).previous||[]).slice(-1)[0]||{},last=Math.max(+((ps.slice(-1)[0]||{}).id||0),+(((pv.plays||[]).slice(-1)[0]||{}).id||0));
+  return{tid:(cd.team||{}).id,desc:cd.description||'',start:(cd.start||{}).yardLine,last,
     prev:real.filter(x=>x!==lp).map(x=>({type:(x.type||{}).text||'',yd:x.statYardage,pen:penOf(x),text:(x.text||'').trim(),q:(x.period||{}).number,clk:(x.clock||{}).displayValue||'',dd:(x.start||{}).downDistanceText||''})),
     lp:lp?{id:lp.id,type:(lp.type||{}).text||'',yd:lp.statYardage,pen:penOf(lp),text:(lp.text||'').trim(),q:(lp.period||{}).number,clk:(lp.clock||{}).displayValue||'',st:sp(lp.start),en:sp(lp.end),
       ppl:(lp.participants||[]).filter(x=>['passer','rusher','receiver','fumbler','recoverer'].includes(x.type)||x.type==='passDefender'&&/intercept/i.test((lp.type||{}).text||'')).map(x=>{const a=x.athlete||{};return{id:a.id,n:a.displayName||'',j:a.jersey||'',pos:(a.position||{}).abbreviation||'',img:(a.headshot||{}).href||'',ab:(a.team||{}).abbreviation||'',ty:x.type}})}:null};
 }
+const boxAt={};
 async function fetchBox(id){
   try{
     const d=await jget(API+'summary?event='+id);
@@ -652,6 +654,7 @@ async function fetchBox(id){
       sp:(d.scoringPlays||[]).map(p=>({q:(p.period||{}).number,clock:(p.clock||{}).displayValue,team:p.team.abbreviation,tid:p.team.id,ty:(p.scoringType||{}).displayName||'',text:p.text,a:p.awayScore,h:p.homeScore})),
       dr:driveOf(d),first:((((d.drives||{}).previous||[])[0]||{}).team||{}).id||null,wp:((d.winprobability||[]).slice(-1)[0]||{}).homeWinPercentage??null,
       inj:(d.injuries||[]).map(t=>({id:t.team.id,items:(t.injuries||[]).map(i=>{const x=i.details||{},a=i.athlete||{};return{n:a.displayName||'',pos:(a.position||{}).abbreviation||'',j:a.jersey||'',s:i.status,b:x.type||'',d:x.detail||'',side:x.side||'',r:x.returnDate||''}})}))};
+    boxAt[id]=Date.now();
     return true;
   }catch(e){return false}
 }
@@ -700,18 +703,28 @@ function foot(){$('#foot').textContent=liveOK?'Live scores from ESPN, updated '+
 document.addEventListener('click',e=>{if(e.target.closest('#strip,#prev,#next'))touched=true},true);
 render();foot();refreshCurrent();refreshStand();
 /* live polling: every 30s while a game is on or about to start, plus an open box score */
-const prevSt={};
+const prevSt={},chase={},sigs={};
 function needsPoll(){const now=Date.now();return W[wk].some(g=>g.state==='in'||(g.state==='pre'&&new Date(g.date).getTime()-now<20*60000))}
+/* scoreboard every 10s; the game summary only when the scoreboard shows a play the summary doesn't have yet
+   (it trails by 5-25s, so keep chasing for up to ~90s), every 60s for stats, and once when the game ends */
+let ticking=false;
 async function tick(){
-  if(document.hidden)return;
-  if(needsPoll())await refreshLive();
-  if($('#ov')&&openId){
-    const g=allGames().find(x=>x.id===openId);
-    if(g&&(g.state==='in'||prevSt[openId]==='in')){const ok=await fetchBox(openId);if(ok&&$('#ov'))openGame(openId,null,true)}
-    if(g)prevSt[openId]=g.state;
-  }
+  if(document.hidden||ticking)return;
+  ticking=true;
+  try{
+    if(needsPoll())await refreshLive();
+    const id=openId,g=$('#ov')&&id&&allGames().find(x=>x.id===id);
+    if(!g||!(g.state==='in'||prevSt[id]==='in')){if(g)prevSt[id]=g.state;return}
+    const ended=g.state!=='in';prevSt[id]=g.state;
+    const b=BOX[id],sl=g.sit&&g.sit.lp,behind=!!(sl&&sl.id&&!(b&&b.dr&&b.dr.last>=+sl.id));
+    if(behind)chase[sl.id]=(chase[sl.id]||0)+1;
+    const sig=JSON.stringify([g.stat,g.sit,g.teams.map(t=>t.score)]);
+    let changed=sig!==sigs[id];sigs[id]=sig;
+    if((behind&&chase[sl.id]<=9)||ended||Date.now()-(boxAt[id]||0)>=60000)changed=await fetchBox(id)||changed;
+    if(changed&&$('#ov')&&openId===id)openGame(id,null,true);
+  }finally{ticking=false}
 }
-setInterval(tick,30000);
+setInterval(tick,10000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshLive();if(view==='stand')refreshStand()}});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
 </script>
