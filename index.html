@@ -182,6 +182,7 @@ td.n{font-family:var(--mono);font-size:13px}
 
 .side b{font-weight:600}
 .side small{font:400 12px var(--mono);color:var(--muted)}
+.tos{display:flex;gap:4px;margin-top:2px}.tos i{width:14px;height:4px;border-radius:2px;background:var(--line)}.tos i.y{background:var(--accent)}
 .mid{display:flex;flex-direction:column;align-items:center;gap:8px}
 .gclk{font:500 13px var(--mono);color:var(--fg);white-space:nowrap}
 .gclk::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--good);margin-right:6px;vertical-align:1px}
@@ -624,12 +625,17 @@ function driveHTML(g,b){
   return `<div class="sec drive">${s&&(s.sdd||s.pt)?`<div class="dd"><div><small>Down</small><b>${esc(s.sdd||'')}</b></div><div><small>Ball on</small><b>${esc(s.pt||'')}</b></div></div>`:''}
     ${field}<div class="dh">${badge(O)}<div><b>Current drive</b><small>${newDrive?(s&&s.pt?'Starting at '+esc(s.pt):'Just started'):esc(desc)}</small></div></div>${play}</div>`;
 }
+function toPips(g,t){
+  const n=g.state==='in'&&g.sit&&g.sit.to?g.sit.to[t===g.teams[0]?0:1]:null;
+  if(n==null||n<0)return '';
+  return `<span class="tos" role="img" aria-label="${n} timeout${n===1?'':'s'} left">${[0,1,2].map(i=>`<i${i<n?' class="y"':''}></i>`).join('')}</span>`;
+}
 function openGame(id,trigger,re){
   const g=allGames().find(x=>x.id===id);if(!g)return;
   openId=id;if(!re)drvOpen=false;
   if(!re)lastFocus=trigger||document.activeElement;
   const [A,H]=g.teams,b=BOX[id];
-  const side=t=>`<button class="side" data-tid="${esc(t.id)}" aria-label="${esc(t.name)} schedule">${badge(t)}<b>${esc(t.loc)} ${esc(t.name)}</b><small>${esc(t.rec||'')}</small></button>`;
+  const side=t=>`<button class="side" data-tid="${esc(t.id)}" aria-label="${esc(t.name)} schedule">${badge(t)}<b>${esc(t.loc)} ${esc(t.name)}</b><small>${esc(t.rec||'')}</small>${toPips(g,t)}</button>`;
   let body='';
   if(g.state==='pre'){
     body=`<div class="board">${side(A)}<div class="big"><span class="dash">at</span></div>${side(H)}</div>
@@ -739,7 +745,7 @@ function mapTeam(c){const t=c.team;return{id:t.id,ab:t.abbreviation,loc:t.locati
 // ESPN drops down/distance right after a score and sometimes omits possession; keep the rest (notably the last play)
 function sitOf(x){
   const l=x.lastPlay,dd=x.downDistanceText||'';
-  return{poss:x.possession||(((l||{}).end||{}).team||{}).id,dd,rz:!!x.isRedZone,yl:dd?x.yardLine:null,dist:x.distance,sdd:dd?x.shortDownDistanceText:'',pt:dd?x.possessionText:'',
+  return{poss:x.possession||(((l||{}).end||{}).team||{}).id,to:[x.awayTimeouts,x.homeTimeouts],dd,rz:!!x.isRedZone,yl:dd?x.yardLine:null,dist:x.distance,sdd:dd?x.shortDownDistanceText:'',pt:dd?x.possessionText:'',
     lp:l?{id:l.id,type:(l.type||{}).text||'',text:(l.text||'').trim(),yd:l.statYardage,tid:(l.team||{}).id,hwp:(l.probability||{}).homeWinPercentage,ddesc:(l.drive||{}).description,syl:(l.start||{}).yardLine,eyl:(l.end||{}).yardLine}:null};
 }
 function mapEv(e,w){const c=e.competitions[0],o=(c.odds||[{}])[0]||{},st=e.status;return{id:e.id,w,date:e.date,state:st.type.state,per:st.period,stat:st.type.shortDetail,teams:c.competitors.map(mapTeam).sort((a,b)=>a.home-b.home),venue:(c.venue||{}).fullName,tv:(c.broadcasts||[]).flatMap(g=>g.names||[]),odds:o.details,ou:o.overUnder,sit:st.type.state==='in'&&c.situation?sitOf(c.situation):null}}
