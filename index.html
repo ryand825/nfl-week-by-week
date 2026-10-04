@@ -215,7 +215,13 @@ td.n{font-family:var(--mono);font-size:13px}
 .lph .tag{font:600 12px var(--body);background:var(--surface2);border-radius:4px;padding:2px 7px}
 .lplay p{margin:6px 0 0;font-size:14px;color:var(--muted)}
 .lplay .lpf{font:400 12px var(--mono);margin-top:10px}
-.dplays{list-style:none;margin:12px 0 0;padding:0;border-top:1px solid var(--line)}
+.dpx{margin-top:10px;border-top:1px solid var(--line)}
+.dpx summary{cursor:pointer;padding:10px 0 0;font:600 13px var(--body);color:var(--accent-text);list-style:none}
+.dpx summary::-webkit-details-marker{display:none}
+.dpx summary::before{content:"▸";display:inline-block;margin-right:6px;transition:transform .15s}
+.dpx[open] summary::before{transform:rotate(90deg)}
+.dpx .c,.dpx[open] .o{display:none}.dpx[open] .c{display:inline}
+.dplays{list-style:none;margin:10px 0 0;padding:0;border-top:1px solid var(--line)}
 .dplays li{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;padding:9px 0}
 .dplays li+li{border-top:1px solid var(--line)}
 .lplay .dplays p{margin:0;color:var(--fg)}
@@ -436,7 +442,7 @@ function playersHTML(g,b){
     return `<div class="pcat"><p class="cn">${names[c.n]}</p><div class="tw"><table><thead><tr><th>Player</th>${c.l.map(l=>`<th>${esc(l)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr><td style="display:table-cell">${esc(r[0])}${r[1]?` <span class="sub">#${esc(r[1])}</span>`:''}</td>${r[2].map(v=>`<td class="n">${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`}).join('');
 }
 let openId=null;
-const irOpen={},noteOpen={};
+const irOpen={},noteOpen={};let drvOpen=false;
 const INJ={t:0,byTeam:null};
 async function fetchInj(){
   if(INJ.byTeam&&Date.now()-INJ.t<300000)return false;
@@ -519,14 +525,14 @@ function driveHTML(g,b){
     play=`<div class="lplay"><div class="lph"><b>${esc(ttl)}</b>${wp!=null?`<span class="wp">Win % ${badge(O)} <b>${wp.toFixed(1)}</b></span>`:''}<span class="tag">Last play</span></div>
       <p>${esc(lp.text)}</p>${ppl.length?`<div class="pcs">${ppl.filter((x,i)=>ppl.findIndex(y=>y.id===x.id)===i).map(pc).join('')}</div>`:''}
       ${lp.st&&lp.st.dd?`<p class="lpf">${lp.q?esc((lp.q>4?'OT':'Q'+lp.q)+' '+lp.clk)+' · ':''}${esc(lp.st.dd)}</p>`:''}
-      ${(dr.prev||[]).length?`<ol class="dplays">${dr.prev.slice().reverse().map(x=>`<li><div><p class="pm">${x.q?esc((x.q>4?'OT':'Q'+x.q)+' '+x.clk):''}${x.q&&x.dd?' · ':''}${esc(x.dd)}</p><p>${esc(x.text)}</p></div><span class="py">${x.yd?(x.yd>0?'+':'')+esc(x.yd):''}</span></li>`).join('')}</ol>`:''}</div>`;
+      ${(dr.prev||[]).length?`<details class="dpx"${drvOpen?' open':''}><summary><span class="o">Show ${dr.prev.length} earlier play${dr.prev.length>1?'s':''} this drive</span><span class="c">Hide earlier plays</span></summary><ol class="dplays">${dr.prev.slice().reverse().map(x=>`<li><div><p class="pm">${x.q?esc((x.q>4?'OT':'Q'+x.q)+' '+x.clk):''}${x.q&&x.dd?' · ':''}${esc(x.dd)}</p><p>${esc(x.text)}</p></div><span class="py">${x.yd?(x.yd>0?'+':'')+esc(x.yd):''}</span></li>`).join('')}</ol></details>`:''}</div>`;
   }
   return `<div class="sec drive">${s&&(s.sdd||s.pt)?`<div class="dd"><div><small>Down</small><b>${esc(s.sdd||'')}</b></div><div><small>Ball on</small><b>${esc(s.pt||'')}</b></div></div>`:''}
     ${field}<div class="dh">${badge(O)}<div><b>Current drive</b><small>${esc(dr.desc)}</small></div></div>${play}</div>`;
 }
 function openGame(id,trigger,re){
   const g=allGames().find(x=>x.id===id);if(!g)return;
-  openId=id;
+  openId=id;if(!re)drvOpen=false;
   if(!re)lastFocus=trigger||document.activeElement;
   const [A,H]=g.teams,b=BOX[id];
   const side=t=>`<button class="side" data-tid="${esc(t.id)}" aria-label="${esc(t.name)} schedule">${badge(t)}<b>${esc(t.loc)} ${esc(t.name)}</b><small>${esc(t.rec||'')}</small><small class="go">Schedule ›</small></button>`;
@@ -557,7 +563,7 @@ function openGame(id,trigger,re){
   if(!re)Promise.all([fetchBox(id),fetchInj()]).then(r=>{if((r[0]||r[1])&&openId===id&&$('#ov'))openGame(id,null,true)});
   if(!re){try{history.pushState({sheet:1},'');pushed=true}catch(e){pushed=false}$('#close').focus()}
   const ov=$('#ov');
-  ov.addEventListener('toggle',e=>{const d=e.target;if(d.classList&&d.classList.contains('ir'))irOpen[d.dataset.t]=d.open;else if(d.classList&&d.classList.contains('nt'))noteOpen[d.dataset.a]=d.open},true);
+  ov.addEventListener('toggle',e=>{const d=e.target;if(d.classList&&d.classList.contains('dpx'))drvOpen=d.open;else if(d.classList&&d.classList.contains('ir'))irOpen[d.dataset.t]=d.open;else if(d.classList&&d.classList.contains('nt'))noteOpen[d.dataset.a]=d.open},true);
   ov.addEventListener('click',e=>{if(e.target===ov)closeGame()});
   ov.addEventListener('click',e=>{const t=e.target.closest('[data-team]');if(t){detailTeam=+t.dataset.team;ov.querySelectorAll('[data-team]').forEach(x=>x.setAttribute('aria-pressed',String(+x.dataset.team===detailTeam)));$('#pl').innerHTML=playersHTML(g,b)}});
   ov.addEventListener('click',e=>{const t=e.target.closest('[data-tid]');if(t)openTeam(t.dataset.tid,true)});
