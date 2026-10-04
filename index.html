@@ -51,6 +51,7 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background
 .wk[aria-current="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
 .wk i{display:block;height:3px;border-radius:2px;margin-top:4px;background:var(--line)}
 .wk.done i{background:var(--good)} .wk.live i{background:var(--live)} .wk[aria-current="true"] i{background:var(--accent-fg);opacity:.5}
+.wk.done[aria-current="true"] i{background:var(--good);opacity:1}.wk.live[aria-current="true"] i{background:var(--live);opacity:1}
 .wk.cur i,.wk.cur[aria-current="true"] i{background:var(--live);opacity:1}
 .nav{flex:0 0 auto;width:34px;height:34px;border:1px solid var(--line);background:var(--surface);border-radius:6px;font-size:18px;line-height:1}
 .nav:disabled{opacity:.35;cursor:default}
@@ -66,6 +67,7 @@ h2{font:800 40px/1 var(--display);letter-spacing:.02em;text-transform:uppercase;
 .full{max-width:none;padding-inline:0}
 .full .wkhead,.full .empty{padding-inline:16px}
 .full .grid{border-radius:0;border-inline:0}
+main.sc{padding-top:0}.sc .grid{margin-top:0;border-top:0}.sc .bye{padding-inline:16px;margin:12px 0 0}
 @media (min-width:1300px){.full .grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));background:var(--surface);overflow:hidden;border:1px solid var(--line);border-radius:10px;margin-top:14px}
 @media (min-width:720px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
@@ -265,13 +267,13 @@ td.n{font-family:var(--mono);font-size:13px}
 .pre dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:0;font-size:14px}
 .pre dt{color:var(--muted)} .pre dd{margin:0}
 footer{padding-block:0 32px;color:var(--muted);font:400 12px var(--mono)}
-@media (max-width:520px){h2{font-size:34px}.big{font-size:48px}.brand small{display:none}}
+@media (max-width:520px){h2{font-size:34px}.big{font-size:48px}}
 @media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}}
 </style>
 
 <header class="top"><div class="wrap">
   <div class="bar">
-    <div class="brand">NFL <span id="season">2026</span><small>REGULAR SEASON</small></div>
+    <div class="brand">NFL <span id="season">2026</span><small id="bsub">REGULAR SEASON</small></div>
     <div class="tabs" role="tablist" aria-label="View">
       <button role="tab" id="tab-scores" aria-selected="true">Scores</button>
       <button role="tab" id="tab-stand" aria-selected="false">Standings</button>
@@ -346,9 +348,9 @@ function renderScores(){
   const fin=all.filter(g=>g.state==='post').length,live=all.filter(g=>g.state==='in').length;
   const playing=new Set(all.flatMap(g=>g.teams.map(t=>t.id)));
   const bye=Object.values(teamsById).filter(t=>!playing.has(t.id)).map(t=>t.ab).sort();
-  let html=`<div class="wkhead"><h2>Week ${wk+1}</h2>${bye.length?`<span class="bye">Bye: ${esc(bye.join(', '))}</span>`:''}</div>`;
-  html+=gs.length?`<div class="grid">${gs.map(card).join('')}</div>`:'<p class="empty">No games scheduled.</p>';
-  $('#main').className='wrap full';
+  let html=gs.length?`<div class="grid">${gs.map(card).join('')}</div>`:'<p class="empty">No games scheduled.</p>';
+  if(bye.length)html+=`<p class="bye">Bye: ${esc(bye.join(', '))}</p>`;
+  $('#main').className='wrap full sc';
   $('#main').innerHTML=html;
 }
 let grp=pref('nfl-grp')==='conf'?'conf':'div';
@@ -427,6 +429,7 @@ function render(){
   document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',String((b.id==='tab-scores')===(tabView==='scores'))));
   $('#weeks').hidden=view!=='scores';
   if(view==='scores'){renderStrip();renderScores()}else if(view==='stand')renderStand();else renderTeam();
+  $('#bsub').textContent=view==='scores'?'Week '+(wk+1):'Regular season';
 }
 /* detail sheet */
 let lastFocus=null,detailTeam=0;
