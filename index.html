@@ -238,7 +238,11 @@ td.n{font-family:var(--mono);font-size:13px}
 .dplays li+li{border-top:1px solid var(--line)}
 .lplay .dplays p{margin:0;color:var(--fg)}
 .lplay .dplays .pm{font:400 12px var(--mono);color:var(--muted);margin-bottom:2px}
-.dplays .py{font:500 13px var(--mono);white-space:nowrap;padding-top:16px}
+.dplays .py{font:500 13px var(--mono);white-space:nowrap;padding-top:16px;text-align:right}
+.pfl{display:block;font:600 10px var(--mono);color:var(--accent-text);margin-top:2px}
+.lplay .pen{color:var(--accent-text)}
+.lph>b:has(+.flag){margin-right:0}
+.lph .flag{font:600 11px var(--mono);background:var(--accent);color:var(--accent-fg);border-radius:4px;padding:2px 6px;margin-right:auto}
 .pcs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px;margin-top:12px}
 .pc{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--bg)}
 .ph{display:flex;align-items:center;gap:10px}
@@ -519,6 +523,13 @@ function kickHTML(g,b){
   const sec=/halftime/i.test(g.stat)||g.per===3,R=sec&&g.teams.some(t=>t.id===b.first)?g.teams.find(t=>t.id!==b.first):null;
   return `<div class="sec"><div class="kick"><b>Waiting for kickoff</b>${R?`<div class="half">${badge(R)}<div><b>${esc(R.loc)} ${esc(R.name)}</b><small>Receive the second-half kickoff</small></div></div>`:''}</div></div>`;
 }
+const sgn=n=>(n>0?'+':'')+n;
+const penTxt=t=>esc(t).replace(/PENALTY on[\s\S]*$/,'<span class="pen">$&</span>');
+const penLab=p=>p.net==null?'PEN':(p.np?'No play · ':'')+'PEN'+(p.eff?' '+sgn(p.eff):'');
+function ydsCell(x){
+  if(x.pen&&x.pen.net!=null)return `${x.pen.net?sgn(x.pen.net):'0'}<small class="pfl">${esc(penLab(x.pen))}</small>`;
+  return (x.yd?esc(sgn(x.yd)):'')+(x.pen?'<small class="pfl">PEN</small>':'');
+}
 function driveHTML(g,b){
   const dr=b.dr;if(!dr)return '';
   const [A,H]=g.teams,lp=dr.lp||{};
@@ -549,10 +560,10 @@ function driveHTML(g,b){
       const cells=r?want.map(l=>{const i=c.l.indexOf(l);return i<0?'':`<div><small>${esc(l)}</small><b>${esc(r[2][i])}</b></div>`}).join(''):'';
       return `<div class="pc"><div class="ph">${pp.img?`<img class="hs" src="${esc(pp.img)}" alt="" onerror="this.remove()">`:''}<div><b>${esc(pp.n)}</b><small>${badge(t)} ${esc(t.name)}${pp.pos?', '+esc(pp.pos):''}${pp.j?', #'+esc(pp.j):''}</small></div></div>${cells?`<div class="ps">${cells}</div>`:''}</div>`};
     const intc=/intercept/i.test(lp.type),fum=/fumble/i.test(lp.type+' '+lp.text),ppl=lp.ppl&&lp.ppl.length?lp.ppl:g.sit&&g.sit.lp&&g.sit.lp.id===lp.id?g.sit.lp.ath.filter(a=>/^(QB|RB|WR|TE|FB|HB)$/.test(a.pos)?a.tid===O.id||intc||fum:intc||fum).map(a=>Object.assign({},a,{ab:(teamsById[a.tid]||O).ab,ty:!/^(QB|RB|WR|TE|FB|HB)$/.test(a.pos)?(intc?'passDefender':'recoverer'):/rush/i.test(lp.type)?'rusher':a.pos==='QB'?'passer':'receiver'})):[];
-    play=`<div class="lplay"><div class="lph"><b>${esc(ttl)}</b>${wp!=null?`<span class="wp">Win % ${badge(O)} <b>${wp.toFixed(1)}</b></span>`:''}<span class="tag">Last play</span></div>
-      <p>${esc(lp.text)}</p>${ppl.length?`<div class="pcs">${ppl.filter((x,i)=>ppl.findIndex(y=>y.id===x.id)===i).map(pc).join('')}</div>`:''}
+    play=`<div class="lplay"><div class="lph"><b>${esc(ttl)}</b>${lp.pen?`<span class="flag">${esc(penLab(lp.pen))}</span>`:''}${wp!=null?`<span class="wp">Win % ${badge(O)} <b>${wp.toFixed(1)}</b></span>`:''}<span class="tag">Last play</span></div>
+      <p>${penTxt(lp.text)}</p>${ppl.length?`<div class="pcs">${ppl.filter((x,i)=>ppl.findIndex(y=>y.id===x.id)===i).map(pc).join('')}</div>`:''}
       ${lp.st&&lp.st.dd?`<p class="lpf">${lp.q?esc((lp.q>4?'OT':'Q'+lp.q)+' '+lp.clk)+' · ':''}${esc(lp.st.dd)}</p>`:''}
-      ${(dr.prev||[]).length?`<details class="dpx"${drvOpen?' open':''}><summary><span class="o">Show ${dr.prev.length} earlier play${dr.prev.length>1?'s':''} this drive</span><span class="c">Hide earlier plays</span></summary><ol class="dplays">${dr.prev.slice().reverse().map(x=>`<li><div><p class="pm">${x.q?esc((x.q>4?'OT':'Q'+x.q)+' '+x.clk):''}${x.q&&x.dd?' · ':''}${esc(x.dd)}</p><p>${esc(x.text)}</p></div><span class="py">${x.yd?(x.yd>0?'+':'')+esc(x.yd):''}</span></li>`).join('')}</ol></details>`:''}</div>`;
+      ${(dr.prev||[]).length?`<details class="dpx"${drvOpen?' open':''}><summary><span class="o">Show ${dr.prev.length} earlier play${dr.prev.length>1?'s':''} this drive</span><span class="c">Hide earlier plays</span></summary><ol class="dplays">${dr.prev.slice().reverse().map(x=>`<li><div><p class="pm">${x.q?esc((x.q>4?'OT':'Q'+x.q)+' '+x.clk):''}${x.q&&x.dd?' · ':''}${esc(x.dd)}</p><p>${penTxt(x.text)}</p></div><span class="py">${ydsCell(x)}</span></li>`).join('')}</ol></details>`:''}</div>`;
   }
   return `<div class="sec drive">${s&&(s.sdd||s.pt)?`<div class="dd"><div><small>Down</small><b>${esc(s.sdd||'')}</b></div><div><small>Ball on</small><b>${esc(s.pt||'')}</b></div></div>`:''}
     ${field}<div class="dh">${badge(O)}<div><b>Current drive</b><small>${esc(dr.desc)}</small></div></div>${play}</div>`;
@@ -612,12 +623,19 @@ $('#tab-stand').onclick=()=>setView('stand');
 /* standalone: live box scores, standings and current week */
 const API='https://site.api.espn.com/apis/site/v2/sports/football/nfl/';
 async function jget(u){const ac=new AbortController(),to=setTimeout(()=>ac.abort(),8000);try{const r=await fetch(u,{signal:ac.signal});if(!r.ok)throw 0;return await r.json()}finally{clearTimeout(to)}}
+function penOf(x){
+  if(!x.isPenalty)return null;
+  const a=x.start||{},z=x.end||{};
+  if(!(a.team&&z.team&&a.team.id===z.team.id&&a.yardsToEndzone!=null&&z.yardsToEndzone!=null))return{};
+  const net=a.yardsToEndzone-z.yardsToEndzone,np=/no play/i.test(x.text||'')||(x.type||{}).text==='Penalty';
+  return{net,np,eff:np?net:net-(x.statYardage||0)};
+}
 function driveOf(d){
   const cd=(d.drives||{}).current;if(!cd)return null;
   const ps=cd.plays||[],real=ps.filter(x=>!/timeout|two-minute|end (of )?(period|quarter|half|game)/i.test((x.type||{}).text||'')),lp=real.slice(-1)[0]||ps.slice(-1)[0],sp=x=>x?{down:x.down,dist:x.distance,yl:x.yardLine,dd:x.downDistanceText,sdd:x.shortDownDistanceText,pt:x.possessionText,poss:(x.team||{}).id}:{};
   return{tid:(cd.team||{}).id,desc:cd.description||'',start:(cd.start||{}).yardLine,
-    prev:real.filter(x=>x!==lp).map(x=>({type:(x.type||{}).text||'',yd:x.statYardage,text:(x.text||'').trim(),q:(x.period||{}).number,clk:(x.clock||{}).displayValue||'',dd:(x.start||{}).downDistanceText||''})),
-    lp:lp?{id:lp.id,type:(lp.type||{}).text||'',yd:lp.statYardage,text:(lp.text||'').trim(),q:(lp.period||{}).number,clk:(lp.clock||{}).displayValue||'',st:sp(lp.start),en:sp(lp.end),
+    prev:real.filter(x=>x!==lp).map(x=>({type:(x.type||{}).text||'',yd:x.statYardage,pen:penOf(x),text:(x.text||'').trim(),q:(x.period||{}).number,clk:(x.clock||{}).displayValue||'',dd:(x.start||{}).downDistanceText||''})),
+    lp:lp?{id:lp.id,type:(lp.type||{}).text||'',yd:lp.statYardage,pen:penOf(lp),text:(lp.text||'').trim(),q:(lp.period||{}).number,clk:(lp.clock||{}).displayValue||'',st:sp(lp.start),en:sp(lp.end),
       ppl:(lp.participants||[]).filter(x=>['passer','rusher','receiver','fumbler','recoverer'].includes(x.type)||x.type==='passDefender'&&/intercept/i.test((lp.type||{}).text||'')).map(x=>{const a=x.athlete||{};return{id:a.id,n:a.displayName||'',j:a.jersey||'',pos:(a.position||{}).abbreviation||'',img:(a.headshot||{}).href||'',ab:(a.team||{}).abbreviation||'',ty:x.type}})}:null};
 }
 async function fetchBox(id){
