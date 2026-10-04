@@ -261,7 +261,7 @@ function lines(g){
   else if(/^EVEN/i.test(g.odds||''))g.teams.forEach(t=>out[t.id]='PK');
   return out;
 }
-const FB='<svg class="fb" viewBox="0 0 20 12" role="img" aria-label="Has the ball"><path class="fb-b" d="M1 6C4.5.6 15.5.6 19 6C15.5 11.4 4.5 11.4 1 6Z"/><path class="fb-l" d="M3.2 3.6v4.8M16.8 3.6v4.8M7 6h6M8 4.7v2.6M9.4 4.7v2.6M10.6 4.7v2.6M12 4.7v2.6"/></svg>';
+const FB='<svg class="fb" viewBox="0 0 20 12" role="img" aria-label="Has the ball"><path class="fb-b" d="M1 6C4.5.6 15.5.6 19 6C15.5 11.4 4.5 11.4 1 6Z"/><path class="fb-l" d="M4.2 4.3v3.4M15.8 4.3v3.4M7 6h6M8 4.7v2.6M9.4 4.7v2.6M10.6 4.7v2.6M12 4.7v2.6"/></svg>';
 function card(g){
   const [a,h]=g.teams, ln=lines(g);
   const lnA=g.ou?'o'+g.ou:'', lnH=g.odds?ln[h.id]||'':'';
