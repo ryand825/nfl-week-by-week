@@ -690,7 +690,11 @@ function penOf(x){
   const a=x.start||{},z=x.end||{};
   if(!(a.team&&z.team&&a.team.id===z.team.id&&a.yardsToEndzone!=null&&z.yardsToEndzone!=null))return{};
   const net=a.yardsToEndzone-z.yardsToEndzone,np=/no play/i.test(x.text||'')||(x.type||{}).text==='Penalty';
-  return{net,np,eff:np?net:net-(x.statYardage||0)};
+  // ESPN's statYardage is unreliable on penalty plays (spot fouls), so read the enforced yards from the text
+  const off=(teamsById[a.team.id]||{}).ab,txt=x.text||'';let eff=null;
+  if(off&&!/offsetting/i.test(txt))for(const m of txt.matchAll(/PENALTY on ([A-Z]{2,3})\b[^,]*, [^,]+, (\d+) yards?/g)){const n=+m[2];eff=(eff||0)+(m[1]===off||m[1]===TXT_AB[off]?-n:n)}
+  if(eff==null)eff=net-(x.statYardage||0);
+  return{net,np,eff:np?net:eff};
 }
 function driveOf(d){
   const cd=(d.drives||{}).current;if(!cd)return null;
