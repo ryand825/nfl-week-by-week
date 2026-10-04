@@ -105,7 +105,6 @@ button.sg:hover{background:var(--surface2)}
 .tl:hover span:last-child{text-decoration:underline}
 button.side{border:0;background:none;color:inherit;font:inherit;padding:6px;border-radius:8px;cursor:pointer}
 button.side:hover b{text-decoration:underline}
-.side .go{color:var(--accent-text);font-family:var(--body)}
 @media (max-width:720px){.fullm{padding-inline:0}.fullm .wkhead,.fullm .conf h3{padding-inline:16px}.fullm .tw{border-radius:0;border-inline:0}}
 .injgrid{display:grid;grid-template-columns:1fr;gap:18px}
 @media (min-width:640px){.injgrid{grid-template-columns:1fr 1fr}}
@@ -535,7 +534,7 @@ function openGame(id,trigger,re){
   openId=id;if(!re)drvOpen=false;
   if(!re)lastFocus=trigger||document.activeElement;
   const [A,H]=g.teams,b=BOX[id];
-  const side=t=>`<button class="side" data-tid="${esc(t.id)}" aria-label="${esc(t.name)} schedule">${badge(t)}<b>${esc(t.loc)} ${esc(t.name)}</b><small>${esc(t.rec||'')}</small><small class="go">Schedule ›</small></button>`;
+  const side=t=>`<button class="side" data-tid="${esc(t.id)}" aria-label="${esc(t.name)} schedule">${badge(t)}<b>${esc(t.loc)} ${esc(t.name)}</b><small>${esc(t.rec||'')}</small></button>`;
   let body='';
   if(g.state==='pre'){
     body=`<div class="board">${side(A)}<div class="big"><span class="dash">at</span></div>${side(H)}</div>
