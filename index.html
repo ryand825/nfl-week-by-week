@@ -340,7 +340,7 @@ function card(g){
   const sl=slot(g),dy=isTBD(g)?etFmt(g.date,{weekday:'short'}):new Date(g.date).toLocaleDateString(undefined,{weekday:'short'});const st=(sl||g.state==='in'?'':dy+' ')+(g.state==='pre'?timeOf(g):g.state==='in'?g.stat:('Final'+(/OT/.test(g.stat)?'/OT':'')));
   return `<button class="card" data-id="${g.id}" aria-label="${esc(a.loc+' '+a.name+' at '+h.loc+' '+h.name)}">
     <div class="ctop"><span class="st ${g.state==='in'?'live':''}">${sl?`<b class="slot">${sl}</b> `:''}${esc(st)}</span><span class="tv">${esc(g.tv.join(', '))}</span></div>
-    ${row(a,lnA)}${row(h,lnH)}${g.state==='in'&&g.sit?`<div class="sit${g.sit.rz?' rz':''}">${esc(g.sit.dd)}</div>`:''}</button>`;
+    ${row(a,lnA)}${row(h,lnH)}${g.state==='in'&&g.sit&&g.sit.dd?`<div class="sit${g.sit.rz?' rz':''}">${esc(g.sit.dd)}</div>`:''}</button>`;
 }
 function curIdx(){const i=W.findIndex((_,i)=>weekState(i)!=='done');return i<0?W.length-1:i}
 function renderStrip(){
@@ -519,7 +519,7 @@ function kickHTML(g,b){
 const sgn=n=>(n>0?'+':'')+n;
 const penTxt=t=>esc(t).replace(/PENALTY on[\s\S]*$/,'<span class="pen">$&</span>');
 function ydsCell(x){
-  if(/^(punt|kickoff)/i.test(x.type||''))return '';
+  if(/^(punt|kickoff|field goal|extra point|blocked)/i.test(x.type||''))return '';
   const p=x.pen;
   if(p&&p.net!=null){
     if(p.np||p.eff===p.net)return `<span class="ypen">${p.net?sgn(p.net):'0'}</span>`;
@@ -541,14 +541,15 @@ function kickSVG(lp,O,A,show){
 function driveHTML(g,b){
   const dr=b.dr;if(!dr)return '';
   const [A,H]=g.teams,dlp=dr.lp||{},sl=g.sit&&g.sit.lp;
-  const s=g.sit&&g.sit.yl!=null?g.sit:dlp.en&&dlp.en.yl!=null?dlp.en:null;
+  // never fall back to the summary's older spot while the scoreboard has a live situation
+  const s=g.sit?(g.sit.yl!=null?g.sit:null):dlp.en&&dlp.en.yl!=null?dlp.en:null;
   // the scoreboard feed often posts the newest play 5-25s before the summary does
   let lp=dlp,prev=dr.prev||[],wpH=b.wp,desc=dr.desc;
   if(sl&&sl.text&&dlp.id&&+sl.id>+dlp.id&&sl.tid===dr.tid&&!/timeout|two-minute|end (of )?(period|quarter|half|game)/i.test(sl.type)){
     prev=prev.concat([dlp]);lp={id:sl.id,type:sl.type,yd:sl.yd,text:sl.text,st:{yl:sl.syl},en:{yl:sl.eyl},pen:/PENALTY on/.test(sl.text)?{}:null};
     if(sl.hwp!=null)wpH=sl.hwp;if(sl.ddesc)desc=sl.ddesc;
   }
-  const pid=(s&&s.poss)||dr.tid,O=pid===A.id?A:pid===H.id?H:null;
+  const pid=(g.sit&&g.sit.poss)||(s&&s.poss)||dr.tid,O=pid===A.id?A:pid===H.id?H:null;
   if(!O)return '';
   // the summary keeps the old drive until the new team runs a play (after a punt, turnover or score)
   const DT=dr.tid===A.id?A:dr.tid===H.id?H:O,newDrive=DT!==O;
@@ -646,7 +647,8 @@ function driveOf(d){
   const cd=(d.drives||{}).current;if(!cd)return null;
   const ps=cd.plays||[],real=ps.filter(x=>!/timeout|two-minute|end (of )?(period|quarter|half|game)/i.test((x.type||{}).text||'')),lp=real.slice(-1)[0]||ps.slice(-1)[0],sp=x=>x?{down:x.down,dist:x.distance,yl:x.yardLine,dd:x.downDistanceText,sdd:x.shortDownDistanceText,pt:x.possessionText,poss:(x.team||{}).id}:{};
   const pv=((d.drives||{}).previous||[]).slice(-1)[0]||{},last=Math.max(+((ps.slice(-1)[0]||{}).id||0),+(((pv.plays||[]).slice(-1)[0]||{}).id||0));
-  return{tid:(cd.team||{}).id,desc:cd.description||'',start:(cd.start||{}).yardLine,last,
+  const snap=real.find(x=>!/kickoff|punt/i.test((x.type||{}).text||''));
+  return{tid:(cd.team||{}).id,desc:cd.description||'',start:snap?(snap.start||{}).yardLine:null,last,
     prev:real.filter(x=>x!==lp).map(x=>({type:(x.type||{}).text||'',yd:x.statYardage,pen:penOf(x),text:(x.text||'').trim(),q:(x.period||{}).number,clk:(x.clock||{}).displayValue||'',dd:(x.start||{}).downDistanceText||''})),
     lp:lp?{id:lp.id,type:(lp.type||{}).text||'',yd:lp.statYardage,pen:penOf(lp),text:(lp.text||'').trim(),q:(lp.period||{}).number,clk:(lp.clock||{}).displayValue||'',st:sp(lp.start),en:sp(lp.end)}:null};
 }
@@ -691,7 +693,13 @@ async function refreshCurrent(){
 /* live scores: works only where the viewer allows outside requests, else the snapshot stays */
 let liveOK=false;
 function mapTeam(c){const t=c.team;return{id:t.id,ab:t.abbreviation,loc:t.location,name:t.name,color:t.color||'333333',alt:t.alternateColor||'999999',score:c.score,win:c.winner,home:c.homeAway==='home',rec:((c.records||[{}])[0]||{}).summary,ls:(c.linescores||[]).map(l=>l.displayValue)}}
-function mapEv(e,w){const c=e.competitions[0],o=(c.odds||[{}])[0]||{},st=e.status;return{id:e.id,w,date:e.date,state:st.type.state,per:st.period,stat:st.type.shortDetail,teams:c.competitors.map(mapTeam).sort((a,b)=>a.home-b.home),venue:(c.venue||{}).fullName,tv:(c.broadcasts||[]).flatMap(g=>g.names||[]),odds:o.details,ou:o.overUnder,sit:st.type.state==='in'&&c.situation&&c.situation.downDistanceText?{poss:c.situation.possession,dd:c.situation.downDistanceText,rz:!!c.situation.isRedZone,yl:c.situation.yardLine,dist:c.situation.distance,sdd:c.situation.shortDownDistanceText,pt:c.situation.possessionText,lp:c.situation.lastPlay?{id:c.situation.lastPlay.id,type:(c.situation.lastPlay.type||{}).text||'',text:(c.situation.lastPlay.text||'').trim(),yd:c.situation.lastPlay.statYardage,tid:(c.situation.lastPlay.team||{}).id,hwp:(c.situation.lastPlay.probability||{}).homeWinPercentage,ddesc:(c.situation.lastPlay.drive||{}).description,syl:(c.situation.lastPlay.start||{}).yardLine,eyl:(c.situation.lastPlay.end||{}).yardLine}:null}:null}}
+// ESPN drops down/distance right after a score and sometimes omits possession; keep the rest (notably the last play)
+function sitOf(x){
+  const l=x.lastPlay,dd=x.downDistanceText||'';
+  return{poss:x.possession||(((l||{}).end||{}).team||{}).id,dd,rz:!!x.isRedZone,yl:dd?x.yardLine:null,dist:x.distance,sdd:dd?x.shortDownDistanceText:'',pt:dd?x.possessionText:'',
+    lp:l?{id:l.id,type:(l.type||{}).text||'',text:(l.text||'').trim(),yd:l.statYardage,tid:(l.team||{}).id,hwp:(l.probability||{}).homeWinPercentage,ddesc:(l.drive||{}).description,syl:(l.start||{}).yardLine,eyl:(l.end||{}).yardLine}:null};
+}
+function mapEv(e,w){const c=e.competitions[0],o=(c.odds||[{}])[0]||{},st=e.status;return{id:e.id,w,date:e.date,state:st.type.state,per:st.period,stat:st.type.shortDetail,teams:c.competitors.map(mapTeam).sort((a,b)=>a.home-b.home),venue:(c.venue||{}).fullName,tv:(c.broadcasts||[]).flatMap(g=>g.names||[]),odds:o.details,ou:o.overUnder,sit:st.type.state==='in'&&c.situation?sitOf(c.situation):null}}
 async function refreshLive(){
   const w=wk+1;
   try{
