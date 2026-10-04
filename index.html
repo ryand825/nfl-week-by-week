@@ -182,11 +182,11 @@ td.n{font-family:var(--mono);font-size:13px}
 .ls table{font-size:13px}
 .sec{margin-top:22px}
 .sec h4{font:600 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;display:flex;gap:12px;align-items:center}
-.drive .dh{display:flex;align-items:center;gap:10px}
+.drive .dh{display:flex;align-items:center;gap:10px;margin-top:14px}
 .drive .dh .logo{width:32px;height:32px}
 .drive .dh b{display:block;font:800 18px/1.1 var(--display);letter-spacing:.04em;text-transform:uppercase}
 .drive .dh small{font:400 12px var(--mono);color:var(--muted)}
-.dd{display:grid;grid-template-columns:1fr 1fr;margin:12px auto 0;max-width:280px;text-align:center}
+.dd{display:grid;grid-template-columns:1fr 1fr;margin:0 auto;max-width:280px;text-align:center}
 .dd div+div{border-left:1px solid var(--line)}
 .dd small{display:block;font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .dd b{font:800 22px/1.2 var(--display);letter-spacing:.03em}
@@ -215,6 +215,12 @@ td.n{font-family:var(--mono);font-size:13px}
 .lph .tag{font:600 12px var(--body);background:var(--surface2);border-radius:4px;padding:2px 7px}
 .lplay p{margin:6px 0 0;font-size:14px;color:var(--muted)}
 .lplay .lpf{font:400 12px var(--mono);margin-top:10px}
+.dplays{list-style:none;margin:12px 0 0;padding:0;border-top:1px solid var(--line)}
+.dplays li{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;padding:9px 0}
+.dplays li+li{border-top:1px solid var(--line)}
+.lplay .dplays p{margin:0;color:var(--fg)}
+.lplay .dplays .pm{font:400 12px var(--mono);color:var(--muted);margin-bottom:2px}
+.dplays .py{font:500 13px var(--mono);white-space:nowrap;padding-top:16px}
 .pcs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px;margin-top:12px}
 .pc{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--bg)}
 .ph{display:flex;align-items:center;gap:10px}
@@ -512,11 +518,11 @@ function driveHTML(g,b){
     const ppl=lp.ppl&&lp.ppl.length?lp.ppl:g.sit&&g.sit.lp&&g.sit.lp.id===lp.id?g.sit.lp.ath.filter(a=>a.tid===O.id&&/^(QB|RB|WR|TE|FB|HB)$/.test(a.pos)).map(a=>Object.assign({},a,{ab:O.ab,ty:/rush/i.test(lp.type)?'rusher':a.pos==='QB'?'passer':'receiver'})):[];
     play=`<div class="lplay"><div class="lph"><b>${esc(ttl)}</b>${wp!=null?`<span class="wp">Win % ${badge(O)} <b>${wp.toFixed(1)}</b></span>`:''}<span class="tag">Last play</span></div>
       <p>${esc(lp.text)}</p>${ppl.length?`<div class="pcs">${ppl.map(pc).join('')}</div>`:''}
-      ${lp.st&&lp.st.dd?`<p class="lpf">${lp.q?esc((lp.q>4?'OT':'Q'+lp.q)+' '+lp.clk)+' · ':''}${esc(lp.st.dd)}</p>`:''}</div>`;
+      ${lp.st&&lp.st.dd?`<p class="lpf">${lp.q?esc((lp.q>4?'OT':'Q'+lp.q)+' '+lp.clk)+' · ':''}${esc(lp.st.dd)}</p>`:''}
+      ${(dr.prev||[]).length?`<ol class="dplays">${dr.prev.slice().reverse().map(x=>`<li><div><p class="pm">${x.q?esc((x.q>4?'OT':'Q'+x.q)+' '+x.clk):''}${x.q&&x.dd?' · ':''}${esc(x.dd)}</p><p>${esc(x.text)}</p></div><span class="py">${x.yd?(x.yd>0?'+':'')+esc(x.yd):''}</span></li>`).join('')}</ol>`:''}</div>`;
   }
-  return `<div class="sec drive"><div class="dh">${badge(O)}<div><b>Current drive</b><small>${esc(dr.desc)}</small></div></div>
-    ${s&&(s.sdd||s.pt)?`<div class="dd"><div><small>Down</small><b>${esc(s.sdd||'')}</b></div><div><small>Ball on</small><b>${esc(s.pt||'')}</b></div></div>`:''}
-    ${field}${play}</div>`;
+  return `<div class="sec drive">${s&&(s.sdd||s.pt)?`<div class="dd"><div><small>Down</small><b>${esc(s.sdd||'')}</b></div><div><small>Ball on</small><b>${esc(s.pt||'')}</b></div></div>`:''}
+    ${field}<div class="dh">${badge(O)}<div><b>Current drive</b><small>${esc(dr.desc)}</small></div></div>${play}</div>`;
 }
 function openGame(id,trigger,re){
   const g=allGames().find(x=>x.id===id);if(!g)return;
@@ -572,8 +578,9 @@ const API='https://site.api.espn.com/apis/site/v2/sports/football/nfl/';
 async function jget(u){const ac=new AbortController(),to=setTimeout(()=>ac.abort(),8000);try{const r=await fetch(u,{signal:ac.signal});if(!r.ok)throw 0;return await r.json()}finally{clearTimeout(to)}}
 function driveOf(d){
   const cd=(d.drives||{}).current;if(!cd)return null;
-  const ps=cd.plays||[],lp=ps.filter(x=>!/timeout|two-minute|end (of )?(period|quarter|half|game)/i.test((x.type||{}).text||'')).slice(-1)[0]||ps.slice(-1)[0],sp=x=>x?{down:x.down,dist:x.distance,yl:x.yardLine,dd:x.downDistanceText,sdd:x.shortDownDistanceText,pt:x.possessionText,poss:(x.team||{}).id}:{};
+  const ps=cd.plays||[],real=ps.filter(x=>!/timeout|two-minute|end (of )?(period|quarter|half|game)/i.test((x.type||{}).text||'')),lp=real.slice(-1)[0]||ps.slice(-1)[0],sp=x=>x?{down:x.down,dist:x.distance,yl:x.yardLine,dd:x.downDistanceText,sdd:x.shortDownDistanceText,pt:x.possessionText,poss:(x.team||{}).id}:{};
   return{tid:(cd.team||{}).id,desc:cd.description||'',start:(cd.start||{}).yardLine,
+    prev:real.filter(x=>x!==lp).map(x=>({type:(x.type||{}).text||'',yd:x.statYardage,text:(x.text||'').trim(),q:(x.period||{}).number,clk:(x.clock||{}).displayValue||'',dd:(x.start||{}).downDistanceText||''})),
     lp:lp?{id:lp.id,type:(lp.type||{}).text||'',yd:lp.statYardage,text:(lp.text||'').trim(),q:(lp.period||{}).number,clk:(lp.clock||{}).displayValue||'',st:sp(lp.start),en:sp(lp.end),
       ppl:(lp.participants||[]).filter(x=>['passer','rusher','receiver'].includes(x.type)).map(x=>{const a=x.athlete||{};return{id:a.id,n:a.displayName||'',j:a.jersey||'',pos:(a.position||{}).abbreviation||'',img:(a.headshot||{}).href||'',ab:(a.team||{}).abbreviation||'',ty:x.type}})}:null};
 }
