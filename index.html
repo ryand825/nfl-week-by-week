@@ -181,6 +181,8 @@ td.n{font-family:var(--mono);font-size:13px}
 .mid{display:flex;flex-direction:column;align-items:center;gap:8px}
 .gclk{font:500 13px var(--mono);color:var(--fg);white-space:nowrap}
 .gclk::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--good);margin-right:6px;vertical-align:1px}
+.kick{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.kick>b{font:800 18px/1.1 var(--display);letter-spacing:.04em;text-transform:uppercase}
 .half{display:flex;align-items:center;gap:12px}
 .half .logo{width:40px;height:40px}
 .half b{display:block;font-weight:600}
@@ -507,9 +509,15 @@ const fx=y=>(10+Math.max(0,Math.min(100,y)))/1.2;
 const tcol=t=>'#'+(t.color==='000000'?t.alt:t.color);
 const PSTAT={passer:[['passing',['C/ATT','YDS','TD','INT']]],rusher:[['rushing',['CAR','YDS','TD','LONG']]],receiver:[['receiving',['REC','YDS','TD','TGTS']]],passDefender:[['interceptions',['INT','YDS','TD']]],
   fumbler:[['fumbles',['FUM','LOST','REC']]],recoverer:[['fumbles',['FUM','LOST','REC']],['defensive',['TOT','SOLO','SACKS']]]};
-function halfHTML(g,b){
-  const R=b.first&&g.teams.find(t=>t.id!==b.first);if(!R||!g.teams.some(t=>t.id===b.first))return '';
-  return `<div class="sec"><div class="half">${badge(R)}<div><b>${esc(R.loc)} ${esc(R.name)}</b><small>Receive the second-half kickoff</small></div></div></div>`;
+function awaitKick(g,b){
+  if(/halftime/i.test(g.stat))return true;
+  const lq=b.dr&&b.dr.lp&&b.dr.lp.q;
+  if(g.per===3||g.per===5)return !!lq&&lq<g.per;
+  return g.per<=1&&!lq;
+}
+function kickHTML(g,b){
+  const sec=/halftime/i.test(g.stat)||g.per===3,R=sec&&g.teams.some(t=>t.id===b.first)?g.teams.find(t=>t.id!==b.first):null;
+  return `<div class="sec"><div class="kick"><b>Waiting for kickoff</b>${R?`<div class="half">${badge(R)}<div><b>${esc(R.loc)} ${esc(R.name)}</b><small>Receive the second-half kickoff</small></div></div>`:''}</div></div>`;
 }
 function driveHTML(g,b){
   const dr=b.dr;if(!dr)return '';
@@ -565,7 +573,7 @@ function openGame(id,trigger,re){
     const sa=+A.score,sh=+H.score;
     body=`<div class="board">${side(A)}<div class="mid"><div class="big"><span class="${sa<sh?'l':''}">${esc(A.score)}</span><span class="dash">–</span><span class="${sh<sa?'l':''}">${esc(H.score)}</span></div>${g.state==='in'?`<div class="gclk">${esc(g.stat)}</div>`:''}</div>${side(H)}</div>`;
     const lsT=`<div class="ls tw"><table><thead><tr><th>Team</th>${hdr}<th>T</th></tr></thead><tbody>${[A,H].map(t=>`<tr><td style="display:table-cell">${esc(t.ab)}</td>${Array.from({length:n},(_,i)=>`<td class="n">${esc(t.ls[i]??'')}</td>`).join('')}<td class="n"><b>${esc(t.score)}</b></td></tr>`).join('')}</tbody></table></div>`;
-    if(b&&g.state==='in')body+=/halftime/i.test(g.stat)?halfHTML(g,b):driveHTML(g,b);
+    if(b&&g.state==='in')body+=awaitKick(g,b)?kickHTML(g,b):driveHTML(g,b);
     if(b&&b.bt.length){
       body+=`<div class="sec"><h4>Team stats</h4><div class="cmp">${cmpHTML(g,b)}</div></div>`;
       if(b.sp.length)body+=`<div class="sec"><h4>Scoring</h4><div class="ssum"><div class="ssh"><span></span><span></span><span>${esc(A.ab)}</span><span>${esc(H.ab)}</span></div>${b.sp.map(p=>{
@@ -651,7 +659,7 @@ async function refreshCurrent(){
 /* live scores: works only where the viewer allows outside requests, else the snapshot stays */
 let liveOK=false;
 function mapTeam(c){const t=c.team;return{id:t.id,ab:t.abbreviation,loc:t.location,name:t.name,color:t.color||'333333',alt:t.alternateColor||'999999',score:c.score,win:c.winner,home:c.homeAway==='home',rec:((c.records||[{}])[0]||{}).summary,ls:(c.linescores||[]).map(l=>l.displayValue)}}
-function mapEv(e,w){const c=e.competitions[0],o=(c.odds||[{}])[0]||{},st=e.status;return{id:e.id,w,date:e.date,state:st.type.state,stat:st.type.shortDetail,teams:c.competitors.map(mapTeam).sort((a,b)=>a.home-b.home),venue:(c.venue||{}).fullName,tv:(c.broadcasts||[]).flatMap(g=>g.names||[]),odds:o.details,ou:o.overUnder,sit:st.type.state==='in'&&c.situation&&c.situation.downDistanceText?{poss:c.situation.possession,dd:c.situation.downDistanceText,rz:!!c.situation.isRedZone,yl:c.situation.yardLine,dist:c.situation.distance,sdd:c.situation.shortDownDistanceText,pt:c.situation.possessionText,lp:c.situation.lastPlay?{id:c.situation.lastPlay.id,ath:(c.situation.lastPlay.athletesInvolved||[]).map(a=>({id:a.id,n:a.displayName||'',j:a.jersey||'',pos:a.position||'',img:(a.headshot||{}).href||'',tid:(a.team||{}).id}))}:null}:null}}
+function mapEv(e,w){const c=e.competitions[0],o=(c.odds||[{}])[0]||{},st=e.status;return{id:e.id,w,date:e.date,state:st.type.state,per:st.period,stat:st.type.shortDetail,teams:c.competitors.map(mapTeam).sort((a,b)=>a.home-b.home),venue:(c.venue||{}).fullName,tv:(c.broadcasts||[]).flatMap(g=>g.names||[]),odds:o.details,ou:o.overUnder,sit:st.type.state==='in'&&c.situation&&c.situation.downDistanceText?{poss:c.situation.possession,dd:c.situation.downDistanceText,rz:!!c.situation.isRedZone,yl:c.situation.yardLine,dist:c.situation.distance,sdd:c.situation.shortDownDistanceText,pt:c.situation.possessionText,lp:c.situation.lastPlay?{id:c.situation.lastPlay.id,ath:(c.situation.lastPlay.athletesInvolved||[]).map(a=>({id:a.id,n:a.displayName||'',j:a.jersey||'',pos:a.position||'',img:(a.headshot||{}).href||'',tid:(a.team||{}).id}))}:null}:null}}
 async function refreshLive(){
   const w=wk+1;
   try{
