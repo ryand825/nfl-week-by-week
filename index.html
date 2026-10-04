@@ -517,7 +517,7 @@ function driveHTML(g,b){
       return `<div class="pc"><div class="ph">${pp.img?`<img class="hs" src="${esc(pp.img)}" alt="" onerror="this.remove()">`:''}<div><b>${esc(pp.n)}</b><small>${badge(t)} ${esc(t.name)}${pp.pos?', '+esc(pp.pos):''}${pp.j?', #'+esc(pp.j):''}</small></div></div>${cells?`<div class="ps">${cells}</div>`:''}</div>`};
     const ppl=lp.ppl&&lp.ppl.length?lp.ppl:g.sit&&g.sit.lp&&g.sit.lp.id===lp.id?g.sit.lp.ath.filter(a=>a.tid===O.id&&/^(QB|RB|WR|TE|FB|HB)$/.test(a.pos)).map(a=>Object.assign({},a,{ab:O.ab,ty:/rush/i.test(lp.type)?'rusher':a.pos==='QB'?'passer':'receiver'})):[];
     play=`<div class="lplay"><div class="lph"><b>${esc(ttl)}</b>${wp!=null?`<span class="wp">Win % ${badge(O)} <b>${wp.toFixed(1)}</b></span>`:''}<span class="tag">Last play</span></div>
-      <p>${esc(lp.text)}</p>${ppl.length?`<div class="pcs">${ppl.map(pc).join('')}</div>`:''}
+      <p>${esc(lp.text)}</p>${ppl.length?`<div class="pcs">${ppl.filter((x,i)=>ppl.findIndex(y=>y.id===x.id)===i).map(pc).join('')}</div>`:''}
       ${lp.st&&lp.st.dd?`<p class="lpf">${lp.q?esc((lp.q>4?'OT':'Q'+lp.q)+' '+lp.clk)+' · ':''}${esc(lp.st.dd)}</p>`:''}
       ${(dr.prev||[]).length?`<ol class="dplays">${dr.prev.slice().reverse().map(x=>`<li><div><p class="pm">${x.q?esc((x.q>4?'OT':'Q'+x.q)+' '+x.clk):''}${x.q&&x.dd?' · ':''}${esc(x.dd)}</p><p>${esc(x.text)}</p></div><span class="py">${x.yd?(x.yd>0?'+':'')+esc(x.yd):''}</span></li>`).join('')}</ol>`:''}</div>`;
   }
@@ -538,14 +538,15 @@ function openGame(id,trigger,re){
     const n=Math.max(A.ls.length,H.ls.length);
     const hdr=Array.from({length:n},(_,i)=>`<th>${i<4?i+1:'OT'}</th>`).join('');
     const sa=+A.score,sh=+H.score;
-    body=`<div class="board">${side(A)}<div class="big"><span class="${sa<sh?'l':''}">${esc(A.score)}</span><span class="dash">–</span><span class="${sh<sa?'l':''}">${esc(H.score)}</span></div>${side(H)}</div>
-    <div class="ls tw"><table><thead><tr><th>Team</th>${hdr}<th>T</th></tr></thead><tbody>${[A,H].map(t=>`<tr><td style="display:table-cell">${esc(t.ab)}</td>${Array.from({length:n},(_,i)=>`<td class="n">${esc(t.ls[i]??'')}</td>`).join('')}<td class="n"><b>${esc(t.score)}</b></td></tr>`).join('')}</tbody></table></div>`;
+    body=`<div class="board">${side(A)}<div class="big"><span class="${sa<sh?'l':''}">${esc(A.score)}</span><span class="dash">–</span><span class="${sh<sa?'l':''}">${esc(H.score)}</span></div>${side(H)}</div>`;
+    const lsT=`<div class="ls tw"><table><thead><tr><th>Team</th>${hdr}<th>T</th></tr></thead><tbody>${[A,H].map(t=>`<tr><td style="display:table-cell">${esc(t.ab)}</td>${Array.from({length:n},(_,i)=>`<td class="n">${esc(t.ls[i]??'')}</td>`).join('')}<td class="n"><b>${esc(t.score)}</b></td></tr>`).join('')}</tbody></table></div>`;
     if(b&&g.state==='in')body+=driveHTML(g,b);
     if(b&&b.bt.length){
       body+=`<div class="sec"><h4>Team stats</h4><div class="cmp">${cmpHTML(g,b)}</div></div>`;
       if(b.sp.length)body+=`<div class="sec"><h4>Scoring</h4><ul class="plays">${b.sp.map(p=>`<li><span class="q">${p.q>4?'OT':'Q'+p.q} ${esc(p.clock)}</span><span><b>${esc(p.team)}</b> ${esc(p.text)}</span><span class="sc">${p.a}–${p.h}</span></li>`).join('')}</ul></div>`;
+      body+=lsT;
       body+=`<div class="sec"><h4>Player stats</h4><div class="tsel">${g.teams.map((t,i)=>`<button data-team="${i}" aria-pressed="${i===detailTeam}">${esc(t.ab)}</button>`).join('')}</div><div id="pl">${playersHTML(g,b)}</div></div>`;
-    }else body+=`<p class="empty">Box score is not in this snapshot yet.</p>`;
+    }else body+=lsT+`<p class="empty">Box score is not in this snapshot yet.</p>`;
   }
   body+=injHTML(g,b);
   const hd=`${slot(g)?slot(g)+' · ':''}${g.state==='post'?'Final':g.state==='in'?g.stat:'Upcoming'}${g.state==='post'&&/OT/.test(g.stat)?' / OT':''} · Week ${g.w}`;
