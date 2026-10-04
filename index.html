@@ -233,8 +233,8 @@ td.n{font-family:var(--mono);font-size:13px}
 .ph b{display:block;font-weight:600}
 .ph small{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)}
 .ph small .logo{width:16px;height:16px}
-.ps{display:grid;grid-template-columns:repeat(4,1fr);margin-top:10px;padding-top:8px;border-top:1px solid var(--line);text-align:center}
-.ps div+div{border-left:1px solid var(--line)}
+.ps{display:flex;margin-top:10px;padding-top:8px;border-top:1px solid var(--line);text-align:center}
+.ps div{flex:1}.ps div+div{border-left:1px solid var(--line)}
 .ps small{display:block;font:500 10px var(--mono);letter-spacing:.06em;color:var(--muted)}
 .ps b{font:500 15px var(--mono)}
 .sec h4::after{content:"";flex:1;height:1px;background:var(--line)}
@@ -490,7 +490,7 @@ function injHTML(g,b){
 }
 const fx=y=>(10+Math.max(0,Math.min(100,y)))/1.2;
 const tcol=t=>'#'+(t.color==='000000'?t.alt:t.color);
-const PSTAT={passer:['passing',['C/ATT','YDS','TD','INT']],rusher:['rushing',['CAR','YDS','TD','LONG']],receiver:['receiving',['REC','YDS','TD','TGTS']]};
+const PSTAT={passer:['passing',['C/ATT','YDS','TD','INT']],rusher:['rushing',['CAR','YDS','TD','LONG']],receiver:['receiving',['REC','YDS','TD','TGTS']],passDefender:['interceptions',['INT','YDS','TD']]};
 function driveHTML(g,b){
   const dr=b.dr;if(!dr)return '';
   const [A,H]=g.teams,lp=dr.lp||{};
@@ -520,7 +520,7 @@ function driveHTML(g,b){
       const tp=(b.pl||[]).find(x=>x.id===t.id),c=tp&&tp.cats.find(x=>x.n===cat),r=c&&c.a.find(x=>x[3]===pp.id);
       const cells=r?want.map(l=>{const i=c.l.indexOf(l);return i<0?'':`<div><small>${esc(l)}</small><b>${esc(r[2][i])}</b></div>`}).join(''):'';
       return `<div class="pc"><div class="ph">${pp.img?`<img class="hs" src="${esc(pp.img)}" alt="" onerror="this.remove()">`:''}<div><b>${esc(pp.n)}</b><small>${badge(t)} ${esc(t.name)}${pp.pos?', '+esc(pp.pos):''}${pp.j?', #'+esc(pp.j):''}</small></div></div>${cells?`<div class="ps">${cells}</div>`:''}</div>`};
-    const ppl=lp.ppl&&lp.ppl.length?lp.ppl:g.sit&&g.sit.lp&&g.sit.lp.id===lp.id?g.sit.lp.ath.filter(a=>a.tid===O.id&&/^(QB|RB|WR|TE|FB|HB)$/.test(a.pos)).map(a=>Object.assign({},a,{ab:O.ab,ty:/rush/i.test(lp.type)?'rusher':a.pos==='QB'?'passer':'receiver'})):[];
+    const intc=/intercept/i.test(lp.type),ppl=lp.ppl&&lp.ppl.length?lp.ppl:g.sit&&g.sit.lp&&g.sit.lp.id===lp.id?g.sit.lp.ath.filter(a=>/^(QB|RB|WR|TE|FB|HB)$/.test(a.pos)?a.tid===O.id||intc:intc).map(a=>Object.assign({},a,{ab:(teamsById[a.tid]||O).ab,ty:!/^(QB|RB|WR|TE|FB|HB)$/.test(a.pos)?'passDefender':/rush/i.test(lp.type)?'rusher':a.pos==='QB'?'passer':'receiver'})):[];
     play=`<div class="lplay"><div class="lph"><b>${esc(ttl)}</b>${wp!=null?`<span class="wp">Win % ${badge(O)} <b>${wp.toFixed(1)}</b></span>`:''}<span class="tag">Last play</span></div>
       <p>${esc(lp.text)}</p>${ppl.length?`<div class="pcs">${ppl.filter((x,i)=>ppl.findIndex(y=>y.id===x.id)===i).map(pc).join('')}</div>`:''}
       ${lp.st&&lp.st.dd?`<p class="lpf">${lp.q?esc((lp.q>4?'OT':'Q'+lp.q)+' '+lp.clk)+' · ':''}${esc(lp.st.dd)}</p>`:''}
@@ -588,7 +588,7 @@ function driveOf(d){
   return{tid:(cd.team||{}).id,desc:cd.description||'',start:(cd.start||{}).yardLine,
     prev:real.filter(x=>x!==lp).map(x=>({type:(x.type||{}).text||'',yd:x.statYardage,text:(x.text||'').trim(),q:(x.period||{}).number,clk:(x.clock||{}).displayValue||'',dd:(x.start||{}).downDistanceText||''})),
     lp:lp?{id:lp.id,type:(lp.type||{}).text||'',yd:lp.statYardage,text:(lp.text||'').trim(),q:(lp.period||{}).number,clk:(lp.clock||{}).displayValue||'',st:sp(lp.start),en:sp(lp.end),
-      ppl:(lp.participants||[]).filter(x=>['passer','rusher','receiver'].includes(x.type)).map(x=>{const a=x.athlete||{};return{id:a.id,n:a.displayName||'',j:a.jersey||'',pos:(a.position||{}).abbreviation||'',img:(a.headshot||{}).href||'',ab:(a.team||{}).abbreviation||'',ty:x.type}})}:null};
+      ppl:(lp.participants||[]).filter(x=>['passer','rusher','receiver'].includes(x.type)||x.type==='passDefender'&&/intercept/i.test((lp.type||{}).text||'')).map(x=>{const a=x.athlete||{};return{id:a.id,n:a.displayName||'',j:a.jersey||'',pos:(a.position||{}).abbreviation||'',img:(a.headshot||{}).href||'',ab:(a.team||{}).abbreviation||'',ty:x.type}})}:null};
 }
 async function fetchBox(id){
   try{
