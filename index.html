@@ -238,6 +238,8 @@ td.n{font-family:var(--mono);font-size:13px}
 .dplays{list-style:none;margin:10px 0 0;padding:0;border-top:1px solid var(--line)}
 .dplays li,.lpr{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;padding:9px 0}
 .lplay p{margin:0;font-size:14px}
+.lplay .pdh{display:flex;align-items:center;gap:6px;margin-top:8px;font:400 12px var(--mono);color:var(--muted)}
+.pdh .logo{width:18px;height:18px}
 .dplays li+li{border-top:1px solid var(--line)}
 .lplay .pm{font:400 12px var(--mono);color:var(--muted);margin-bottom:2px}
 .lplay .py{font:500 13px var(--mono);white-space:nowrap;padding-top:16px;text-align:right}
@@ -536,6 +538,8 @@ function driveHTML(g,b){
   }
   const pid=(s&&s.poss)||dr.tid,O=pid===A.id?A:pid===H.id?H:null;
   if(!O)return '';
+  // the summary keeps the old drive until the new team runs a play (after a punt, turnover or score)
+  const DT=dr.tid===A.id?A:dr.tid===H.id?H:O,newDrive=DT!==O;
   const goR=O===A,bx=s?100-s.yl:0;
   let field='';
   if(s){
@@ -547,7 +551,7 @@ function driveHTML(g,b){
     field=`<div class="fld" role="img" aria-label="${esc(O.ab)} ball on ${esc(s.pt||'')}${s.dd?', '+esc(s.dd):''}">
       <div class="pin" style="left:${fx(bx)}%">${badge(O)}</div>
       <div class="turf">${ez(A,'l')}${ez(H,'r')}${lines}
-        ${sx!=null?`<i class="drv" style="left:${fx(Math.min(sx,bx))}%;width:${Math.abs(bx-sx)/1.2}%;background:${tcol(O)}"></i>`:''}
+        ${sx!=null&&!newDrive?`<i class="drv" style="left:${fx(Math.min(sx,bx))}%;width:${Math.abs(bx-sx)/1.2}%;background:${tcol(O)}"></i>`:''}
         <i class="los" style="left:${fx(bx)}%"></i>${!s.sdd||!s.dist||/goal/i.test(s.sdd)?'':`<i class="fdl" style="left:${fx(fd)}%"></i>`}</div>
       <div class="ynum"><span style="left:${fx(0)}%">${esc(A.ab)}</span>${nums}<span style="left:${fx(100)}%">${esc(H.ab)}</span></div></div>`;
   }
@@ -556,11 +560,12 @@ function driveHTML(g,b){
     const wp=wpH==null?null:Math.round((O===H?wpH:1-wpH)*1000)/10;
     const cur={q:lp.q,clk:lp.clk,dd:(lp.st||{}).dd||'',text:lp.text,yd:lp.yd,pen:lp.pen};
     play=`<div class="lplay"><div class="lph"><b>${esc(lp.type)}</b>${wp!=null?`<span class="wp">Win % ${badge(O)} <b>${wp.toFixed(1)}</b></span>`:''}<span class="tag">Last play</span></div>
+      ${newDrive?`<p class="pdh">${badge(DT)} ${esc(DT.name)} drive${desc?' · '+esc(desc):''}</p>`:''}
       <div class="lpr">${playRow(cur)}</div>
-      ${(prev||[]).length?`<details class="dpx"${drvOpen?' open':''}><summary><span class="o">Show ${prev.length} earlier play${prev.length>1?'s':''} this drive</span><span class="c">Hide earlier plays</span></summary><ol class="dplays">${prev.slice().reverse().map(x=>`<li>${playRow(x)}</li>`).join('')}</ol></details>`:''}</div>`;
+      ${(prev||[]).length?`<details class="dpx"${drvOpen?' open':''}><summary><span class="o">Show ${prev.length} earlier play${prev.length>1?'s':''} ${newDrive?'that':'this'} drive</span><span class="c">Hide earlier plays</span></summary><ol class="dplays">${prev.slice().reverse().map(x=>`<li>${playRow(x)}</li>`).join('')}</ol></details>`:''}</div>`;
   }
   return `<div class="sec drive">${s&&(s.sdd||s.pt)?`<div class="dd"><div><small>Down</small><b>${esc(s.sdd||'')}</b></div><div><small>Ball on</small><b>${esc(s.pt||'')}</b></div></div>`:''}
-    ${field}<div class="dh">${badge(O)}<div><b>Current drive</b><small>${esc(desc)}</small></div></div>${play}</div>`;
+    ${field}<div class="dh">${badge(O)}<div><b>Current drive</b><small>${newDrive?(s&&s.pt?'Starting at '+esc(s.pt):'Just started'):esc(desc)}</small></div></div>${play}</div>`;
 }
 function openGame(id,trigger,re){
   const g=allGames().find(x=>x.id===id);if(!g)return;
