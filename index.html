@@ -370,7 +370,7 @@ function cmpHTML(g,b){
   const [A,H]=g.teams;
   return want.map(l=>{const x=get(ta,l),y=get(tb,l);if(x==null||y==null)return '';
     const nx=parseV(l,x),ny=parseV(l,y),tot=(nx||0)+(ny||0),pa=tot?nx/tot*100:50;
-    return `<div class="bars"><i style="width:${pa}%;background:#${A.color==='000000'?A.alt:A.color}"></i><i style="width:${100-pa}%;background:#${H.color==='000000'?H.alt:H.color}"></i></div><span class="v">${esc(x)}</span><span class="lab">${esc(l.replace('3rd down efficiency','3rd Down'))}</span><span class="v">${esc(y)}</span>`}).join('');
+    return `<span class="v">${esc(x)}</span><span class="lab">${esc(l.replace('3rd down efficiency','3rd Down'))}</span><span class="v">${esc(y)}</span><div class="bars"><i style="width:${pa}%;background:#${A.color==='000000'?A.alt:A.color}"></i><i style="width:${100-pa}%;background:#${H.color==='000000'?H.alt:H.color}"></i></div>`}).join('');
 }
 function playersHTML(g,b){
   const t=g.teams[detailTeam];const p=b.pl.find(x=>x.id===t.id);if(!p)return '';
