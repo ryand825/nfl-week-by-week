@@ -219,6 +219,10 @@ td.n{font-family:var(--mono);font-size:13px}
 .karc .ka{fill:none;stroke:var(--fg);stroke-width:2;stroke-dasharray:5 4;opacity:.75;vector-effect:non-scaling-stroke}
 .karc .kr{fill:none;stroke:var(--fg);stroke-width:2;stroke-dasharray:1 4;stroke-linecap:round;opacity:.75;vector-effect:non-scaling-stroke}
 .karc .kl{fill:var(--fg);opacity:.75}
+.scb{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:8px;padding:5px 12px 5px 6px;border-radius:8px;box-shadow:0 2px 10px #0006;white-space:nowrap;z-index:1}
+.scb .logo{width:26px;height:26px;background:#fff;padding:2px}
+.scb b{display:block;font:800 19px/1 var(--display);letter-spacing:.06em;text-transform:uppercase}
+.scb small{display:block;font:500 10px var(--mono);letter-spacing:.04em;opacity:.9;margin-top:2px}
 .turf .los{position:absolute;top:0;bottom:0;width:3px;margin-left:-1.5px;background:#2f6fe0}
 .turf .fdl{position:absolute;top:0;bottom:0;width:3px;margin-left:-1.5px;background:#f2c230}
 .pin{position:absolute;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;z-index:1}
@@ -514,7 +518,7 @@ function awaitKick(g,b){
 }
 function kickHTML(g,b){
   const sec=/halftime/i.test(g.stat)||g.per===3,R=sec&&g.teams.some(t=>t.id===b.first)?g.teams.find(t=>t.id!==b.first):null;
-  return `<div class="sec"><div class="kick"><b>Waiting for kickoff</b>${R?`<div class="half">${badge(R)}<div><b>${esc(R.loc)} ${esc(R.name)}</b><small>Receive the second-half kickoff</small></div></div>`:''}</div></div>`;
+  return `<div class="sec drive">${fieldHTML(g.teams[0],g.teams[1])}<div class="kick" style="margin-top:14px"><b>Waiting for kickoff</b>${R?`<div class="half">${badge(R)}<div><b>${esc(R.loc)} ${esc(R.name)}</b><small>Receive the second-half kickoff</small></div></div>`:''}</div></div>`;
 }
 const sgn=n=>(n>0?'+':'')+n;
 const penTxt=t=>esc(t).replace(/PENALTY on[\s\S]*$/,'<span class="pen">$&</span>');
@@ -538,8 +542,27 @@ function kickSVG(lp,O,A,show){
   const dir=O===A?-1:1,X=y=>Math.max(0,Math.min(120,y+10)),sx=X(100-sy),lx=X(100-sy+dir*+n[1]),ex=ey==null?null:X(100-ey),mx=(sx+lx)/2;
   return `<svg class="karc" viewBox="0 0 120 64" preserveAspectRatio="none" aria-hidden="true"><path d="M${sx} 46Q${mx} -14 ${lx} 46" class="ka"/><circle cx="${lx}" cy="46" r="1.2" class="kl"/>${ex!=null&&Math.abs(ex-lx)>.5?`<path d="M${lx} 46H${ex}" class="kr"/>`:''}</svg>`;
 }
+// shown on the field between a score and the kickoff; the try's result is appended to the TD text once it's run
+function scoreBanner(lp,DT,A,H){
+  const t=lp.type||'',x=lp.text||'',S=/safety/i.test(t)?(DT===A?H:A):DT;
+  const lab=/touchdown/i.test(t)?'Touchdown':/field goal/i.test(t)?'Field goal':/safety/i.test(t)?'Safety':'';
+  if(!lab)return '';
+  const tr=lab!=='Touchdown'?'':/extra point is good/i.test(x)?'Extra point good':/extra point is blocked/i.test(x)?'Extra point blocked':/extra point is/i.test(x)?'Extra point no good':
+    /two-point conversion attempt[\s\S]*attempt succeeds/i.test(x)?'2-pt conversion good':/two-point conversion attempt[\s\S]*attempt fails/i.test(x)?'2-pt conversion failed':'Extra point or 2-pt try next';
+  const c=S.color==='000000'?S.alt:S.color;
+  return `<div class="scb" style="background:#${esc(c)};color:${ink(c)}">${badge(S)}<div><b>${lab}</b>${tr?`<small>${tr}</small>`:''}</div></div>`;
+}
+function fieldHTML(A,H,pin,over,label){
+  const lines=[1,2,3,4,5,6,7,8,9].map(i=>`<i class="yl${i===5?' mid':''}" style="left:${fx(i*10)}%"></i>`).join('');
+  const nums=[10,20,30,40,50,40,30,20,10].map((n,i)=>`<span style="left:${fx((i+1)*10)}%">${n}</span>`).join('');
+  const ez=(t,side)=>`<div class="ez ${side}" style="background:${tcol(t)};color:${ink(t.color==='000000'?t.alt:t.color)}"><span${t.name.length>8?' style="font-size:10px"':''}>${esc(t.name)}</span></div>`;
+  return `<div class="fld" role="img" aria-label="${esc(label||'Field')}">${pin||''}
+      <div class="turf">${ez(A,'l')}${ez(H,'r')}${lines}${over||''}</div>
+      <div class="ynum"><span style="left:${fx(0)}%">${esc(A.ab)}</span>${nums}<span style="left:${fx(100)}%">${esc(H.ab)}</span></div></div>`;
+}
+const emptyField=g=>`<div class="sec drive">${fieldHTML(g.teams[0],g.teams[1])}</div>`;
 function driveHTML(g,b){
-  const dr=b.dr;if(!dr)return '';
+  const dr=b.dr;if(!dr)return emptyField(g);
   const [A,H]=g.teams,dlp=dr.lp||{},sl=g.sit&&g.sit.lp;
   // never fall back to the summary's older spot while the scoreboard has a live situation
   const s=g.sit?(g.sit.yl!=null?g.sit:null):dlp.en&&dlp.en.yl!=null?dlp.en:null;
@@ -550,7 +573,7 @@ function driveHTML(g,b){
     if(sl.hwp!=null)wpH=sl.hwp;if(sl.ddesc)desc=sl.ddesc;
   }
   const pid=(g.sit&&g.sit.poss)||(s&&s.poss)||dr.tid,O=pid===A.id?A:pid===H.id?H:null;
-  if(!O)return '';
+  if(!O)return emptyField(g);
   // the summary keeps the old drive until the new team runs a play (after a punt, turnover or score)
   const DT=dr.tid===A.id?A:dr.tid===H.id?H:O,newDrive=DT!==O;
   // after a score ESPN has no spot until the kickoff: show where the scoring drive ended instead
@@ -561,20 +584,15 @@ function driveHTML(g,b){
     if(y!=null){F={yl:y};P=DT}
   }
   const goR=O===A,bx=F?100-F.yl:0;
-  let field='';
+  let field=fieldHTML(A,H);
   if(F){
     const fd=s?Math.max(0,Math.min(100,goR?bx+(+s.dist||0):bx-(+s.dist||0))):0;
     const sy=dr.start!=null?dr.start:lp!==dlp&&!/kickoff|punt/i.test(lp.type||'')?(lp.st||{}).yl:null,sx=sy!=null?100-sy:null;
-    const lines=[1,2,3,4,5,6,7,8,9].map(i=>`<i class="yl${i===5?' mid':''}" style="left:${fx(i*10)}%"></i>`).join('');
-    const nums=[10,20,30,40,50,40,30,20,10].map((n,i)=>`<span style="left:${fx((i+1)*10)}%">${n}</span>`).join('');
-    const ez=(t,side)=>`<div class="ez ${side}" style="background:${tcol(t)};color:${ink(t.color==='000000'?t.alt:t.color)}"><span${t.name.length>8?' style="font-size:10px"':''}>${esc(t.name)}</span></div>`;
-    field=`<div class="fld" role="img" aria-label="${s?`${esc(O.ab)} ball on ${esc(s.pt||'')}${s.dd?', '+esc(s.dd):''}`:`${esc(DT.ab)} drive: ${esc(lp.type)}`}">
-      <div class="pin" style="left:${fx(bx)}%">${badge(P)}</div>
-      <div class="turf">${ez(A,'l')}${ez(H,'r')}${lines}
-        ${sx!=null&&(!newDrive||!s)?`<i class="drv" style="left:${fx(Math.min(sx,bx))}%;width:${Math.abs(bx-sx)/1.2}%;background:${tcol(DT)}"></i>`:''}
-        ${kickSVG(lp,O,A,newDrive||!prev.length)}
-        ${s?`<i class="los" style="left:${fx(bx)}%"></i>${!s.sdd||!s.dist||/goal/i.test(s.sdd)?'':`<i class="fdl" style="left:${fx(fd)}%"></i>`}`:''}</div>
-      <div class="ynum"><span style="left:${fx(0)}%">${esc(A.ab)}</span>${nums}<span style="left:${fx(100)}%">${esc(H.ab)}</span></div></div>`;
+    field=fieldHTML(A,H,s?`<div class="pin" style="left:${fx(bx)}%">${badge(P)}</div>`:'',
+      `${sx!=null&&(!newDrive||!s)?`<i class="drv" style="left:${fx(Math.min(sx,bx))}%;width:${Math.abs(bx-sx)/1.2}%;background:${tcol(DT)}"></i>`:''}
+        ${kickSVG(lp,O,A,newDrive||!prev.length)}${s?'':scoreBanner(lp,DT,A,H)}
+        ${s?`<i class="los" style="left:${fx(bx)}%"></i>${!s.sdd||!s.dist||/goal/i.test(s.sdd)?'':`<i class="fdl" style="left:${fx(fd)}%"></i>`}`:''}`,
+      s?`${O.ab} ball on ${s.pt||''}${s.dd?', '+s.dd:''}`:`${DT.ab} drive: ${lp.type||''}`);
   }
   let play='';
   if(lp.text){
@@ -604,7 +622,7 @@ function openGame(id,trigger,re){
     const sa=+A.score,sh=+H.score;
     body=`<div class="board">${side(A)}<div class="mid"><div class="big"><span class="${sa<sh?'l':''}">${esc(A.score)}</span><span class="dash">–</span><span class="${sh<sa?'l':''}">${esc(H.score)}</span></div>${g.state==='in'?`<div class="gclk">${esc(g.stat)}</div>`:''}</div>${side(H)}</div>`;
     const lsT=`<div class="ls tw"><table><thead><tr><th>Team</th>${hdr}<th>T</th></tr></thead><tbody>${[A,H].map(t=>`<tr><td style="display:table-cell">${esc(t.ab)}</td>${Array.from({length:n},(_,i)=>`<td class="n">${esc(t.ls[i]??'')}</td>`).join('')}<td class="n"><b>${esc(t.score)}</b></td></tr>`).join('')}</tbody></table></div>`;
-    if(b&&g.state==='in')body+=awaitKick(g,b)?kickHTML(g,b):driveHTML(g,b);
+    if(g.state==='in')body+=!b?emptyField(g):awaitKick(g,b)?kickHTML(g,b):driveHTML(g,b);
     if(b&&b.bt.length){
       body+=`<div class="sec"><h4>Team stats</h4><div class="cmp">${cmpHTML(g,b)}</div></div>`;
       if(b.sp.length)body+=`<div class="sec"><h4>Scoring</h4><div class="ssum"><div class="ssh"><span></span><span></span><span>${esc(A.ab)}</span><span>${esc(H.ab)}</span></div>${b.sp.map(p=>{
