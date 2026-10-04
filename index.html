@@ -539,8 +539,9 @@ function playRow(x){
   return `<div>${m?`<p class="pm">${esc(m)}</p>`:''}<p>${penTxt(x.text)}</p></div><span class="py">${ydsCell(x)}</span>`;
 }
 // dashed arc from the kick spot to where the ball came down, dotted return to the new spot (yards incl. end zones: 0-120)
-function kickSVG(lp,O,A,show){
-  const n=/(?:punts|kicks) (\d+) yards?/i.exec(lp.text||''),sy=(lp.st||{}).yl,ey=(lp.en||{}).yl;
+function kickSVG(lp,O,A,show,live){
+  // end the return at the live spot when there is one: ESPN sometimes amends the play (e.g. adds a penalty) after posting it
+  const n=/(?:punts|kicks) (\d+) yards?/i.exec(lp.text||''),sy=(lp.st||{}).yl,ey=live!=null?live:(lp.en||{}).yl;
   if(!show||!/^(punt|kickoff)/i.test(lp.type||'')||!n||sy==null)return '';
   const dir=O===A?-1:1,X=y=>Math.max(0,Math.min(120,y+10)),sx=X(100-sy),lx=X(100-sy+dir*+n[1]),ex=ey==null?null:X(100-ey),mx=(sx+lx)/2;
   return `<svg class="karc" viewBox="0 0 120 64" preserveAspectRatio="none" aria-hidden="true"><path d="M${sx} 46Q${mx} -14 ${lx} 46" class="ka"/><circle cx="${lx}" cy="46" r="1.2" class="kl"/>${ex!=null&&Math.abs(ex-lx)>.5?`<path d="M${lx} 46H${ex}" class="kr"/>`:''}</svg>`;
@@ -609,7 +610,7 @@ function driveHTML(g,b){
     const sy=dr.start!=null?dr.start:lp!==dlp&&!/kickoff|punt/i.test(lp.type||'')?(lp.st||{}).yl:null,sx=sy!=null?100-sy:null;
     field=fieldHTML(A,H,s?`<div class="pin" style="left:${fx(bx)}%">${badge(P)}</div>`:'',
       `${sx!=null&&(!newDrive||!s)?`<i class="drv" style="left:${fx(Math.min(sx,bx))}%;width:${Math.abs(bx-sx)/1.2}%;background:${tcol(DT)}"></i>`:''}
-        ${kickSVG(lp,O,A,newDrive||!prev.length)}${s?'':scoreBanner(lp,DT,A,H)}${s&&newDrive?turnoverHTML(lp,DT,O,A,H,sx,s.yl):''}
+        ${kickSVG(lp,O,A,newDrive||!prev.length,s?s.yl:null)}${s?'':scoreBanner(lp,DT,A,H)}${s&&newDrive?turnoverHTML(lp,DT,O,A,H,sx,s.yl):''}
         ${s?`<i class="los" style="left:${fx(bx)}%"></i>${!s.sdd||!s.dist||/goal/i.test(s.sdd)?'':`<i class="fdl" style="left:${fx(fd)}%"></i>`}`:''}`,
       s?`${O.ab} ball on ${s.pt||''}${s.dd?', '+s.dd:''}`:`${DT.ab} drive: ${lp.type||''}`);
   }
