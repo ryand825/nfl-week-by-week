@@ -505,7 +505,7 @@ const PSTAT={passer:[['passing',['C/ATT','YDS','TD','INT']]],rusher:[['rushing',
   fumbler:[['fumbles',['FUM','LOST','REC']]],recoverer:[['fumbles',['FUM','LOST','REC']],['defensive',['TOT','SOLO','SACKS']]]};
 function halfHTML(g,b){
   const R=b.first&&g.teams.find(t=>t.id!==b.first);if(!R||!g.teams.some(t=>t.id===b.first))return '';
-  return `<div class="sec"><h4>Second half</h4><div class="half">${badge(R)}<div><b>${esc(R.loc)} ${esc(R.name)}</b><small>Receive the second-half kickoff</small></div></div></div>`;
+  return `<div class="sec"><div class="half">${badge(R)}<div><b>${esc(R.loc)} ${esc(R.name)}</b><small>Receive the second-half kickoff</small></div></div></div>`;
 }
 function driveHTML(g,b){
   const dr=b.dr;if(!dr)return '';
