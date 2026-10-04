@@ -548,17 +548,24 @@ function kickSVG(lp,O,A,show,live){
   return `<svg class="karc" viewBox="0 0 120 64" preserveAspectRatio="none" aria-hidden="true"><path d="M${sx} 46Q${mx} -14 ${lx} 46" class="ka"/><circle cx="${lx}" cy="46" r="1.2" class="kl"/>${ex!=null&&Math.abs(ex-lx)>.5?`<path d="M${lx} 46H${ex}" class="kr"/>`:''}</svg>`;
 }
 // shown on the field between a score and the kickoff; the try's result is appended to the TD text once it's run
+// ESPN's play type isn't reliable for scores (safeties typed as Penalty/Pass Incompletion, defensive TDs as
+// "Sack Opp Fumble Recovery"), so read the text; the defensive try is appended after "DEFENSIVE TWO-POINT ATTEMPT"
 function scoreOf(lp,DT,A,H){
-  const t=lp.type||'',S=/safety/i.test(t)?(DT===A?H:A):DT;
-  const lab=/touchdown/i.test(t)?'Touchdown':/field goal/i.test(t)?'Field goal':/safety/i.test(t)?'Safety':'';
+  const t=lp.type||'',x=(lp.text||'').split(/DEFENSIVE TWO-POINT/i)[0];
+  const lab=/touchdown/i.test(t)||/\bTOUCHDOWN\b/.test(x)?'Touchdown':/safety/i.test(t)||/\bsafety\b/i.test(x)?'Safety':
+    /field goal good/i.test(t)||/field goal is good/i.test(x)?'Field goal':'';
+  if(!lab)return null;
+  // the play's end team is the team that scored (checked against every scoring play this season)
+  const et=(lp.en||{}).poss,S=et===A.id?A:et===H.id?H:lab==='Safety'?(DT===A?H:A):DT;
   // the team scored on receives, except after a safety (the team that gave it up free-kicks)
-  return lab?{lab,S,R:lab==='Safety'?S:S===A?H:A}:null;
+  return{lab,S,R:lab==='Safety'?S:S===A?H:A};
 }
 function scoreBanner(lp,DT,A,H){
   const sc=scoreOf(lp,DT,A,H);if(!sc)return '';
-  const {lab,S}=sc,x=lp.text||'';
-  const tr=lab!=='Touchdown'?'':/extra point is good/i.test(x)?'Extra point good':/extra point is blocked/i.test(x)?'Extra point blocked':/extra point is/i.test(x)?'Extra point no good':
-    /two-point conversion attempt[\s\S]*attempt succeeds/i.test(x)?'2-pt conversion good':/two-point conversion attempt[\s\S]*attempt fails/i.test(x)?'2-pt conversion failed':'';
+  const {lab,S}=sc,[x,dx]=(lp.text||'').split(/DEFENSIVE TWO-POINT ATTEMPT/i),D=S===A?H:A;
+  const tr=lab!=='Touchdown'?'':dx&&/attempt succeeds/i.test(dx)?`Defensive 2-pt by ${D.ab}`:
+    /extra point is good/i.test(x)?'Extra point good':/extra point is blocked/i.test(x)?'Extra point blocked':/extra point is/i.test(x)?'Extra point no good':
+    /two-point conversion attempt[\s\S]*?attempt succeeds/i.test(x)?'2-pt conversion good':/two-point conversion attempt[\s\S]*?attempt fails/i.test(x)?'2-pt conversion failed':'';
   const c=S.color==='000000'?S.alt:S.color;
   return `<div class="scb" style="background:#${esc(c)};color:${ink(c)}">${badge(S)}<div><b>${lab}</b>${tr?`<small>${tr}</small>`:''}</div></div>`;
 }
@@ -599,7 +606,7 @@ function driveHTML(g,b){
   // the scoreboard feed often posts the newest play 5-25s before the summary does
   let lp=dlp,prev=dr.prev||[],wpH=b.wp,desc=dr.desc;
   if(sl&&sl.text&&dlp.id&&+sl.id>+dlp.id&&sl.tid===dr.tid&&!/timeout|two-minute|end (of )?(period|quarter|half|game)/i.test(sl.type)){
-    prev=prev.concat([dlp]);lp={id:sl.id,type:sl.type,yd:sl.yd,text:sl.text,st:{yl:sl.syl},en:{yl:sl.eyl},pen:/PENALTY on/.test(sl.text)?{}:null};
+    prev=prev.concat([dlp]);lp={id:sl.id,type:sl.type,yd:sl.yd,text:sl.text,st:{yl:sl.syl},en:{yl:sl.eyl,poss:sl.etid},pen:/PENALTY on/.test(sl.text)?{}:null};
     if(sl.hwp!=null)wpH=sl.hwp;if(sl.ddesc)desc=sl.ddesc;
   }
   const pid=(g.sit&&g.sit.poss)||(s&&s.poss)||dr.tid,O=pid===A.id?A:pid===H.id?H:null;
@@ -608,10 +615,11 @@ function driveHTML(g,b){
   const DT=dr.tid===A.id?A:dr.tid===H.id?H:O,newDrive=DT!==O;
   // after a score ESPN has no spot until the kickoff: show where the scoring drive ended instead
   let F=s,P=O;
+  const sc=!s&&g.sit&&lp.text?scoreOf(lp,DT,A,H):null;
   if(!s&&g.sit&&lp.text){
-    const t=lp.type||'',ky=(lp.st||{}).yl,ey=(lp.en||{}).yl;
-    const y=/touchdown/i.test(t)?(DT===A?0:100):/field goal|extra point|two-point/i.test(t)&&ky!=null?ky:ey;
-    if(y!=null){F={yl:y};P=DT}
+    const ky=(lp.st||{}).yl,ey=(lp.en||{}).yl;
+    const y=sc&&sc.lab==='Touchdown'?(sc.S===A?0:100):sc&&sc.lab==='Field goal'&&ky!=null?ky:ey;
+    if(y!=null){F={yl:y};P=sc?sc.S:DT}
   }
   const goR=O===A,bx=F?100-F.yl:0;
   let field=fieldHTML(A,H);
@@ -619,7 +627,7 @@ function driveHTML(g,b){
     const fd=s?Math.max(0,Math.min(100,goR?bx+(+s.dist||0):bx-(+s.dist||0))):0;
     const sy=dr.start!=null?dr.start:lp!==dlp&&!/kickoff|punt/i.test(lp.type||'')?(lp.st||{}).yl:null,sx=sy!=null?100-sy:null;
     field=fieldHTML(A,H,s?`<div class="pin" style="left:${fx(bx)}%">${badge(P)}</div>`:'',
-      `${sx!=null&&(!newDrive||!s)?`<i class="drv" style="left:${fx(Math.min(sx,bx))}%;width:${Math.abs(bx-sx)/1.2}%;background:${tcol(DT)}"></i>`:''}
+      `${sx!=null&&(!newDrive||!s)&&!(sc&&sc.S!==DT)?`<i class="drv" style="left:${fx(Math.min(sx,bx))}%;width:${Math.abs(bx-sx)/1.2}%;background:${tcol(DT)}"></i>`:''}
         ${kickSVG(lp,O,A,newDrive||!prev.length,s?s.yl:null)}${s?'':scoreBanner(lp,DT,A,H)}${s&&newDrive?turnoverHTML(lp,DT,O,A,H,sx,s.yl):''}
         ${s?`<i class="los" style="left:${fx(bx)}%"></i>${!s.sdd||!s.dist||/goal/i.test(s.sdd)?'':`<i class="fdl" style="left:${fx(fd)}%"></i>`}`:''}`,
       s?`${O.ab} ball on ${s.pt||''}${s.dd?', '+s.dd:''}`:`${DT.ab} drive: ${lp.type||''}`);
@@ -633,7 +641,6 @@ function driveHTML(g,b){
       <div class="lpr">${playRow(cur)}</div>
       ${(prev||[]).length?`<details class="dpx"${drvOpen?' open':''}><summary><span class="o">Show ${prev.length} earlier play${prev.length>1?'s':''} ${newDrive?'that':'this'} drive</span><span class="c">Hide earlier plays</span></summary><ol class="dplays">${prev.slice().reverse().map(x=>`<li>${playRow(x)}</li>`).join('')}</ol></details>`:''}</div>`;
   }
-  const sc=!s&&lp.text?scoreOf(lp,DT,A,H):null;
   return `<div class="sec drive">${s&&(s.sdd||s.pt)?ddBox('Down',esc(s.sdd||'—'),'Ball on',esc(s.pt||'—')):sc?ddKick(sc.R):ddNone()}
     ${field}<div class="dh">${badge(O)}<div><b>Current drive</b><small>${newDrive?(s&&s.pt?'Starting at '+esc(s.pt):'Just started'):esc(desc)}</small></div></div>${play}</div>`;
 }
@@ -762,7 +769,7 @@ function mapTeam(c){const t=c.team;return{id:t.id,ab:t.abbreviation,loc:t.locati
 function sitOf(x){
   const l=x.lastPlay,dd=x.downDistanceText||'';
   return{poss:x.possession||(((l||{}).end||{}).team||{}).id,to:[x.awayTimeouts,x.homeTimeouts],dd,rz:!!x.isRedZone,yl:dd?x.yardLine:null,dist:x.distance,sdd:dd?x.shortDownDistanceText:'',pt:dd?x.possessionText:'',
-    lp:l?{id:l.id,type:(l.type||{}).text||'',text:(l.text||'').trim(),yd:l.statYardage,tid:(l.team||{}).id,hwp:(l.probability||{}).homeWinPercentage,ddesc:(l.drive||{}).description,syl:(l.start||{}).yardLine,eyl:(l.end||{}).yardLine}:null};
+    lp:l?{id:l.id,type:(l.type||{}).text||'',text:(l.text||'').trim(),yd:l.statYardage,tid:(l.team||{}).id,hwp:(l.probability||{}).homeWinPercentage,ddesc:(l.drive||{}).description,syl:(l.start||{}).yardLine,eyl:(l.end||{}).yardLine,etid:((l.end||{}).team||{}).id}:null};
 }
 function mapEv(e,w){const c=e.competitions[0],o=(c.odds||[{}])[0]||{},st=e.status;return{id:e.id,w,date:e.date,state:st.type.state,per:st.period,stat:st.type.shortDetail,teams:c.competitors.map(mapTeam).sort((a,b)=>a.home-b.home),venue:(c.venue||{}).fullName,tv:(c.broadcasts||[]).flatMap(g=>g.names||[]),odds:o.details,ou:o.overUnder,sit:st.type.state==='in'&&c.situation?sitOf(c.situation):null}}
 async function refreshLive(){
