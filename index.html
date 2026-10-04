@@ -142,6 +142,9 @@ td .logo{width:28px;height:28px}
 .odd{font:500 13px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
 .score{font:800 24px/1 var(--display);font-variant-numeric:tabular-nums;text-align:right}
 .trow.lose .ab,.trow.lose .score{color:var(--muted)}
+.fb{flex:0 0 auto;width:14px;height:9px;fill:#8a5a2b;stroke:var(--fg);stroke-width:.8;margin-left:-2px}
+.sit{font:500 12px var(--mono);color:var(--muted)}
+.sit.rz{color:var(--live)}
 .trow.win .score::before{content:"◂";font-size:12px;color:var(--accent-text);margin-right:5px;vertical-align:middle}
 .empty{color:var(--muted);padding:24px 0}
 /* standings */
@@ -259,11 +262,11 @@ function lines(g){
 function card(g){
   const [a,h]=g.teams, ln=lines(g);
   const lnA=g.ou?'o'+g.ou:'', lnH=g.odds?ln[h.id]||'':'';
-  const row=(t,l)=>`<div class="trow ${g.state==='post'?(t.win?'win':'lose'):''}">${badge(t)}<span class="ab">${esc(t.ab)}</span><span class="rec">${esc(t.rec||'')}</span>${g.state==='pre'?`<span class="odd">${esc(l)}</span>`:`<span class="score">${esc(t.score)}</span>`}</div>`;
+  const row=(t,l)=>`<div class="trow ${g.state==='post'?(t.win?'win':'lose'):''}">${badge(t)}<span class="ab">${esc(t.ab)}</span><span class="rec">${esc(t.rec||'')}</span>${g.state==='pre'?`<span class="odd">${esc(l)}</span>`:`<span class="score">${esc(t.score)}</span>`}${g.state==='in'&&g.sit&&g.sit.poss===t.id?'<svg class="fb" viewBox="0 0 14 9" role="img" aria-label="Has the ball"><ellipse cx="7" cy="4.5" rx="6.5" ry="4"/></svg>':''}</div>`;
   const sl=slot(g),dy=isTBD(g)?etFmt(g.date,{weekday:'short'}):new Date(g.date).toLocaleDateString(undefined,{weekday:'short'});const st=(sl?'':dy+' ')+(g.state==='pre'?timeOf(g):g.state==='in'?g.stat:('Final'+(/OT/.test(g.stat)?'/OT':'')));
   return `<button class="card" data-id="${g.id}" aria-label="${esc(a.loc+' '+a.name+' at '+h.loc+' '+h.name)}">
     <div class="ctop"><span class="st ${g.state==='in'?'live':''}">${sl?`<b class="slot">${sl}</b> `:''}${esc(st)}</span><span class="tv">${esc(g.tv.join(', '))}</span></div>
-    ${row(a,lnA)}${row(h,lnH)}</button>`;
+    ${row(a,lnA)}${row(h,lnH)}${g.state==='in'&&g.sit?`<div class="sit${g.sit.rz?' rz':''}">${esc(g.sit.dd)}</div>`:''}</button>`;
 }
 function curIdx(){const i=W.findIndex((_,i)=>weekState(i)!=='done');return i<0?W.length-1:i}
 function renderStrip(){
@@ -516,7 +519,7 @@ async function refreshCurrent(){
 /* live scores: works only where the viewer allows outside requests, else the snapshot stays */
 let liveOK=false;
 function mapTeam(c){const t=c.team;return{id:t.id,ab:t.abbreviation,loc:t.location,name:t.name,color:t.color||'333333',alt:t.alternateColor||'999999',score:c.score,win:c.winner,home:c.homeAway==='home',rec:((c.records||[{}])[0]||{}).summary,ls:(c.linescores||[]).map(l=>l.displayValue)}}
-function mapEv(e,w){const c=e.competitions[0],o=(c.odds||[{}])[0]||{},st=e.status;return{id:e.id,w,date:e.date,state:st.type.state,stat:st.type.shortDetail,teams:c.competitors.map(mapTeam).sort((a,b)=>a.home-b.home),venue:(c.venue||{}).fullName,tv:(c.broadcasts||[]).flatMap(g=>g.names||[]),odds:o.details,ou:o.overUnder}}
+function mapEv(e,w){const c=e.competitions[0],o=(c.odds||[{}])[0]||{},st=e.status;return{id:e.id,w,date:e.date,state:st.type.state,stat:st.type.shortDetail,teams:c.competitors.map(mapTeam).sort((a,b)=>a.home-b.home),venue:(c.venue||{}).fullName,tv:(c.broadcasts||[]).flatMap(g=>g.names||[]),odds:o.details,ou:o.overUnder,sit:st.type.state==='in'&&c.situation&&c.situation.downDistanceText?{poss:c.situation.possession,dd:c.situation.downDistanceText,rz:!!c.situation.isRedZone}:null}}
 async function refreshLive(){
   const w=wk+1;
   try{
