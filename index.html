@@ -178,6 +178,13 @@ td.n{font-family:var(--mono);font-size:13px}
 
 .side b{font-weight:600}
 .side small{font:400 12px var(--mono);color:var(--muted)}
+.mid{display:flex;flex-direction:column;align-items:center;gap:8px}
+.gclk{font:500 13px var(--mono);color:var(--fg);white-space:nowrap}
+.gclk::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--good);margin-right:6px;vertical-align:1px}
+.half{display:flex;align-items:center;gap:12px}
+.half .logo{width:40px;height:40px}
+.half b{display:block;font-weight:600}
+.half small{font-size:13px;color:var(--muted)}
 .big{font:800 64px/1 var(--display);font-variant-numeric:tabular-nums;display:flex;gap:10px;align-items:center}
 .big span.dash{color:var(--muted);font-size:36px}
 .big .l{color:var(--muted)}
@@ -496,6 +503,10 @@ const fx=y=>(10+Math.max(0,Math.min(100,y)))/1.2;
 const tcol=t=>'#'+(t.color==='000000'?t.alt:t.color);
 const PSTAT={passer:[['passing',['C/ATT','YDS','TD','INT']]],rusher:[['rushing',['CAR','YDS','TD','LONG']]],receiver:[['receiving',['REC','YDS','TD','TGTS']]],passDefender:[['interceptions',['INT','YDS','TD']]],
   fumbler:[['fumbles',['FUM','LOST','REC']]],recoverer:[['fumbles',['FUM','LOST','REC']],['defensive',['TOT','SOLO','SACKS']]]};
+function halfHTML(g,b){
+  const R=b.first&&g.teams.find(t=>t.id!==b.first);if(!R||!g.teams.some(t=>t.id===b.first))return '';
+  return `<div class="sec"><h4>Second half</h4><div class="half">${badge(R)}<div><b>${esc(R.loc)} ${esc(R.name)}</b><small>Receive the second-half kickoff</small></div></div></div>`;
+}
 function driveHTML(g,b){
   const dr=b.dr;if(!dr)return '';
   const [A,H]=g.teams,lp=dr.lp||{};
@@ -548,9 +559,9 @@ function openGame(id,trigger,re){
     const n=Math.max(A.ls.length,H.ls.length);
     const hdr=Array.from({length:n},(_,i)=>`<th>${i<4?i+1:'OT'}</th>`).join('');
     const sa=+A.score,sh=+H.score;
-    body=`<div class="board">${side(A)}<div class="big"><span class="${sa<sh?'l':''}">${esc(A.score)}</span><span class="dash">–</span><span class="${sh<sa?'l':''}">${esc(H.score)}</span></div>${side(H)}</div>`;
+    body=`<div class="board">${side(A)}<div class="mid"><div class="big"><span class="${sa<sh?'l':''}">${esc(A.score)}</span><span class="dash">–</span><span class="${sh<sa?'l':''}">${esc(H.score)}</span></div>${g.state==='in'?`<div class="gclk">${esc(g.stat)}</div>`:''}</div>${side(H)}</div>`;
     const lsT=`<div class="ls tw"><table><thead><tr><th>Team</th>${hdr}<th>T</th></tr></thead><tbody>${[A,H].map(t=>`<tr><td style="display:table-cell">${esc(t.ab)}</td>${Array.from({length:n},(_,i)=>`<td class="n">${esc(t.ls[i]??'')}</td>`).join('')}<td class="n"><b>${esc(t.score)}</b></td></tr>`).join('')}</tbody></table></div>`;
-    if(b&&g.state==='in')body+=driveHTML(g,b);
+    if(b&&g.state==='in')body+=/halftime/i.test(g.stat)?halfHTML(g,b):driveHTML(g,b);
     if(b&&b.bt.length){
       body+=`<div class="sec"><h4>Team stats</h4><div class="cmp">${cmpHTML(g,b)}</div></div>`;
       if(b.sp.length)body+=`<div class="sec"><h4>Scoring</h4><ul class="plays">${b.sp.map(p=>`<li><span class="q">${p.q>4?'OT':'Q'+p.q} ${esc(p.clock)}</span><span><b>${esc(p.team)}</b> ${esc(p.text)}</span><span class="sc">${p.a}–${p.h}</span></li>`).join('')}</ul></div>`;
@@ -601,7 +612,7 @@ async function fetchBox(id){
     BOX[id]={bt:((d.boxscore||{}).teams||[]).map(t=>({id:t.team.id,s:t.statistics.map(s=>[s.label,s.displayValue])})),
       pl:((d.boxscore||{}).players||[]).map(t=>({id:t.team.id,cats:t.statistics.map(c=>({n:c.name,l:c.labels,a:c.athletes.map(a=>[a.athlete.displayName,a.athlete.jersey,a.stats,a.athlete.id])}))})),
       sp:(d.scoringPlays||[]).map(p=>({q:(p.period||{}).number,clock:(p.clock||{}).displayValue,team:p.team.abbreviation,text:p.text,a:p.awayScore,h:p.homeScore})),
-      dr:driveOf(d),wp:((d.winprobability||[]).slice(-1)[0]||{}).homeWinPercentage??null,
+      dr:driveOf(d),first:((((d.drives||{}).previous||[])[0]||{}).team||{}).id||null,wp:((d.winprobability||[]).slice(-1)[0]||{}).homeWinPercentage??null,
       inj:(d.injuries||[]).map(t=>({id:t.team.id,items:(t.injuries||[]).map(i=>{const x=i.details||{},a=i.athlete||{};return{n:a.displayName||'',pos:(a.position||{}).abbreviation||'',j:a.jersey||'',s:i.status,b:x.type||'',d:x.detail||'',side:x.side||'',r:x.returnDate||''}})}))};
     return true;
   }catch(e){return false}
