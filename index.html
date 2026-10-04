@@ -108,7 +108,7 @@ button.sg:hover{background:var(--surface2)}
 .tl:hover span:last-child{text-decoration:underline}
 button.side{border:0;background:none;color:inherit;font:inherit;padding:6px;border-radius:8px;cursor:pointer}
 button.side:hover b{text-decoration:underline}
-@media (max-width:720px){.fullm{padding-inline:0}.fullm .wkhead,.fullm .conf h3{padding-inline:16px}.fullm .tw{border-radius:0;border-inline:0}}
+@media (max-width:720px){.fullm{padding-inline:0}.fullm .wkhead,.fullm .stbar,.fullm .conf h3{padding-inline:16px}.fullm .tw{border-radius:0;border-inline:0}}
 .injgrid{display:grid;grid-template-columns:1fr;gap:18px}
 @media (min-width:640px){.injgrid{grid-template-columns:1fr 1fr}}
 .injteam{min-width:0}
@@ -152,9 +152,11 @@ td .logo{width:28px;height:28px}
 .trow.win .score::before{content:"◂";font-size:12px;color:var(--accent-text);margin-right:5px;vertical-align:middle}
 .empty{color:var(--muted);padding:24px 0}
 /* standings */
-.conf{margin-top:20px}
+.conf{margin-top:16px}
 .conf h3{font:800 28px/1 var(--display);letter-spacing:.04em;margin:0 0 8px}
 .gsel{margin-left:auto}
+main.fullm{padding-top:12px}
+.stbar .gsel{display:flex;margin:0}.stbar .gsel button{flex:1}
 .gsel button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px #0003}
 .divgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:4px 16px;align-items:start;margin-bottom:8px}
 .tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
@@ -359,8 +361,7 @@ function standTable(rows,title,sub){
 }
 function renderStand(){
   $('#main').className='wrap fullm';
-  const through=Math.max(1,W.reduce((n,_,i)=>weekState(i)==='done'?i+1:n,0));
-  let html=`<div class="wkhead"><h2>Standings</h2><span class="sub">Through Week ${through}, ordered by win percentage then point differential</span><div class="tabs gsel" role="group" aria-label="Group standings by"><button data-grp="div" aria-pressed="${grp==='div'}">Division</button><button data-grp="conf" aria-pressed="${grp==='conf'}">Conference</button></div></div>`;
+  let html=`<div class="stbar"><div class="tabs gsel" role="group" aria-label="Group standings by"><button data-grp="div" aria-pressed="${grp==='div'}">Division</button><button data-grp="conf" aria-pressed="${grp==='conf'}">Conference</button></div></div>`;
   const byId={};DATA.stand.forEach(c=>c.ents.forEach(t=>byId[t.id]=t));
   if(grp==='div')['AFC','NFC'].forEach(cf=>{html+=`<div class="divgrid">`+DATA.divs.filter(d=>d.conf===cf).map(d=>standTable(d.ids.map(i=>byId[i]).filter(Boolean),d.name)).join('')+`</div>`});
   else DATA.stand.forEach(c=>{html+=standTable(c.ents,c.conf)});
