@@ -206,7 +206,8 @@ td.n{font-family:var(--mono);font-size:13px}
 .dd{display:grid;grid-template-columns:1fr 1fr;margin:0 auto;max-width:280px;text-align:center}
 .dd div+div{border-left:1px solid var(--line)}
 .dd small{display:block;font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-.dd b{font:800 22px/1.2 var(--display);letter-spacing:.03em}
+.dd b{font:800 22px/1.2 var(--display);letter-spacing:.03em;display:inline-flex;align-items:center;gap:5px}
+.dd b .logo{width:20px;height:20px}
 .fld{position:relative;padding-top:44px;margin:4px 0 0}
 .turf{position:relative;height:64px;border-radius:4px;overflow:hidden;background:repeating-linear-gradient(90deg,var(--surface2) 0 8.333%,var(--surface) 8.333% 16.667%);border:1px solid var(--line)}
 .ez{position:absolute;top:0;bottom:0;width:8.333%;display:flex;align-items:center;justify-content:center;overflow:hidden}
@@ -521,7 +522,7 @@ function awaitKick(g,b){
 }
 function kickHTML(g,b){
   const sec=/halftime/i.test(g.stat)||g.per===3,R=sec&&g.teams.some(t=>t.id===b.first)?g.teams.find(t=>t.id!==b.first):null;
-  return `<div class="sec drive">${fieldHTML(g.teams[0],g.teams[1])}<div class="kick" style="margin-top:14px"><b>Waiting for kickoff</b>${R?`<div class="half">${badge(R)}<div><b>${esc(R.loc)} ${esc(R.name)}</b><small>Receive the second-half kickoff</small></div></div>`:''}</div></div>`;
+  return `<div class="sec drive">${ddKick(R)}${fieldHTML(g.teams[0],g.teams[1])}<div class="kick" style="margin-top:14px"><b>Waiting for kickoff</b>${R?`<div class="half">${badge(R)}<div><b>${esc(R.loc)} ${esc(R.name)}</b><small>Receive the second-half kickoff</small></div></div>`:''}</div></div>`;
 }
 const sgn=n=>(n>0?'+':'')+n;
 const penTxt=t=>esc(t).replace(/PENALTY on[\s\S]*$/,'<span class="pen">$&</span>');
@@ -547,10 +548,15 @@ function kickSVG(lp,O,A,show,live){
   return `<svg class="karc" viewBox="0 0 120 64" preserveAspectRatio="none" aria-hidden="true"><path d="M${sx} 46Q${mx} -14 ${lx} 46" class="ka"/><circle cx="${lx}" cy="46" r="1.2" class="kl"/>${ex!=null&&Math.abs(ex-lx)>.5?`<path d="M${lx} 46H${ex}" class="kr"/>`:''}</svg>`;
 }
 // shown on the field between a score and the kickoff; the try's result is appended to the TD text once it's run
-function scoreBanner(lp,DT,A,H){
-  const t=lp.type||'',x=lp.text||'',S=/safety/i.test(t)?(DT===A?H:A):DT;
+function scoreOf(lp,DT,A,H){
+  const t=lp.type||'',S=/safety/i.test(t)?(DT===A?H:A):DT;
   const lab=/touchdown/i.test(t)?'Touchdown':/field goal/i.test(t)?'Field goal':/safety/i.test(t)?'Safety':'';
-  if(!lab)return '';
+  // the team scored on receives, except after a safety (the team that gave it up free-kicks)
+  return lab?{lab,S,R:lab==='Safety'?S:S===A?H:A}:null;
+}
+function scoreBanner(lp,DT,A,H){
+  const sc=scoreOf(lp,DT,A,H);if(!sc)return '';
+  const {lab,S}=sc,x=lp.text||'';
   const tr=lab!=='Touchdown'?'':/extra point is good/i.test(x)?'Extra point good':/extra point is blocked/i.test(x)?'Extra point blocked':/extra point is/i.test(x)?'Extra point no good':
     /two-point conversion attempt[\s\S]*attempt succeeds/i.test(x)?'2-pt conversion good':/two-point conversion attempt[\s\S]*attempt fails/i.test(x)?'2-pt conversion failed':'Extra point or 2-pt try next';
   const c=S.color==='000000'?S.alt:S.color;
@@ -564,7 +570,10 @@ function fieldHTML(A,H,pin,over,label){
       <div class="turf">${ez(A,'l')}${ez(H,'r')}${lines}${over||''}</div>
       <div class="ynum"><span style="left:${fx(0)}%">${esc(A.ab)}</span>${nums}<span style="left:${fx(100)}%">${esc(H.ab)}</span></div></div>`;
 }
-const emptyField=g=>`<div class="sec drive">${fieldHTML(g.teams[0],g.teams[1])}</div>`;
+const ddBox=(l1,v1,l2,v2)=>`<div class="dd"><div><small>${l1}</small><b>${v1}</b></div><div><small>${l2}</small><b>${v2}</b></div></div>`;
+const ddNone=()=>ddBox('Down','—','Ball on','—');
+const ddKick=R=>ddBox('Next','Kickoff','Receiving',R?`${badge(R)}${esc(R.ab)}`:'—');
+const emptyField=g=>`<div class="sec drive">${ddNone()}${fieldHTML(g.teams[0],g.teams[1])}</div>`;
 // play-by-play text uses a few different team codes
 const TXT_AB={ARI:'ARZ',BAL:'BLT',CLE:'CLV',HOU:'HST',LAR:'LA',WSH:'WAS'};
 // "NE 19" / "50" in play text -> yards from the home goal line (the app's field coordinate)
@@ -624,7 +633,8 @@ function driveHTML(g,b){
       <div class="lpr">${playRow(cur)}</div>
       ${(prev||[]).length?`<details class="dpx"${drvOpen?' open':''}><summary><span class="o">Show ${prev.length} earlier play${prev.length>1?'s':''} ${newDrive?'that':'this'} drive</span><span class="c">Hide earlier plays</span></summary><ol class="dplays">${prev.slice().reverse().map(x=>`<li>${playRow(x)}</li>`).join('')}</ol></details>`:''}</div>`;
   }
-  return `<div class="sec drive">${s&&(s.sdd||s.pt)?`<div class="dd"><div><small>Down</small><b>${esc(s.sdd||'')}</b></div><div><small>Ball on</small><b>${esc(s.pt||'')}</b></div></div>`:''}
+  const sc=!s&&lp.text?scoreOf(lp,DT,A,H):null;
+  return `<div class="sec drive">${s&&(s.sdd||s.pt)?ddBox('Down',esc(s.sdd||'—'),'Ball on',esc(s.pt||'—')):sc?ddKick(sc.R):ddNone()}
     ${field}<div class="dh">${badge(O)}<div><b>Current drive</b><small>${newDrive?(s&&s.pt?'Starting at '+esc(s.pt):'Just started'):esc(desc)}</small></div></div>${play}</div>`;
 }
 function toPips(g,t){
