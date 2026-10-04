@@ -615,12 +615,12 @@ function turnoverHTML(lp,DT,O,A,H,sx,ey,res){
 }
 function driveHTML(g,b){
   const dr=b.dr;if(!dr)return emptyField(g);
-  const [A,H]=g.teams,dlp=dr.lp||{},sl=g.sit&&g.sit.lp;
+  const [A,H]=g.teams,dlp=dr.lp||{},sl=(g.sbp||[]).filter(x=>+x.id>+(dlp.id||0)&&x.tid===dr.tid).pop();
   // never fall back to the summary's older spot while the scoreboard has a live situation
   const s=g.sit?(g.sit.yl!=null?g.sit:null):dlp.en&&dlp.en.yl!=null?dlp.en:null;
   // the scoreboard feed often posts the newest play 5-25s before the summary does
   let lp=dlp,prev=dr.prev||[],wpH=b.wp,desc=dr.desc;
-  if(sl&&sl.text&&dlp.id&&+sl.id>+dlp.id&&sl.tid===dr.tid&&!/timeout|two-minute|end (of )?(period|quarter|half|game)/i.test(sl.type)){
+  if(sl&&dlp.id){
     prev=prev.concat([dlp]);lp={id:sl.id,type:sl.type,yd:sl.yd,text:sl.text,st:{yl:sl.syl},en:{yl:sl.eyl,poss:sl.etid},pen:/PENALTY on/.test(sl.text)?{}:null};
     if(sl.hwp!=null)wpH=sl.hwp;if(sl.ddesc)desc=sl.ddesc;
   }
@@ -781,6 +781,7 @@ async function refreshCurrent(){
 let liveOK=false;
 function mapTeam(c){const t=c.team;return{id:t.id,ab:t.abbreviation,loc:t.location,name:t.name,color:t.color||'333333',alt:t.alternateColor||'999999',score:c.score,win:c.winner,home:c.homeAway==='home',rec:((c.records||[{}])[0]||{}).summary,ls:(c.linescores||[]).map(l=>l.displayValue)}}
 // ESPN drops down/distance right after a score and sometimes omits possession; keep the rest (notably the last play)
+const NONPLAY=/timeout|two-minute|end (of )?(period|quarter|half|game)/i;
 function sitOf(x){
   const l=x.lastPlay,dd=x.downDistanceText||'';
   return{poss:x.possession||(((l||{}).end||{}).team||{}).id,to:[x.awayTimeouts,x.homeTimeouts],dd,rz:!!x.isRedZone,yl:dd?x.yardLine:null,dist:x.distance,sdd:dd?x.shortDownDistanceText:'',pt:dd?x.possessionText:'',
@@ -795,7 +796,10 @@ async function refreshLive(){
     clearTimeout(to);if(!r.ok)return;
     const d=await r.json();
     const fresh=d.events.map(e=>mapEv(e,w));
-    fresh.forEach(f=>{const old=W[wk].find(x=>x.id===f.id);if(old)Object.assign(old,f);else W[wk].push(f)});
+    fresh.forEach(f=>{const old=W[wk].find(x=>x.id===f.id),p=f.sit&&f.sit.lp;
+      // keep the recent real plays the scoreboard has shown, so a timeout/kickoff posted next doesn't hide one the summary still lacks
+      f.sbp=((old&&old.sbp)||[]).filter(x=>!p||x.id!==p.id).concat(p&&p.id&&p.text&&!NONPLAY.test(p.type)?[p]:[]).slice(-8);
+      if(old)Object.assign(old,f);else W[wk].push(f)});
     liveOK=true;foot();if(view==='scores'&&!$('#ov')){renderStrip();renderScores()}
   }catch(e){}
 }
