@@ -223,6 +223,8 @@ td.n{font-family:var(--mono);font-size:13px}
 .scb .logo{width:26px;height:26px;background:#fff;padding:2px}
 .scb b{display:block;font:800 19px/1 var(--display);letter-spacing:.06em;text-transform:uppercase}
 .scb small{display:block;font:500 10px var(--mono);letter-spacing:.04em;opacity:.9;margin-top:2px}
+.turf .drv.old{opacity:.14}
+.turf .tom{position:absolute;top:5px;transform:translateX(-50%);font:700 10px/1 var(--mono);letter-spacing:.06em;padding:3px 5px;border-radius:4px;white-space:nowrap;box-shadow:0 1px 4px #0005}
 .turf .los{position:absolute;top:0;bottom:0;width:3px;margin-left:-1.5px;background:#2f6fe0}
 .turf .fdl{position:absolute;top:0;bottom:0;width:3px;margin-left:-1.5px;background:#f2c230}
 .pin{position:absolute;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;z-index:1}
@@ -561,6 +563,22 @@ function fieldHTML(A,H,pin,over,label){
       <div class="ynum"><span style="left:${fx(0)}%">${esc(A.ab)}</span>${nums}<span style="left:${fx(100)}%">${esc(H.ab)}</span></div></div>`;
 }
 const emptyField=g=>`<div class="sec drive">${fieldHTML(g.teams[0],g.teams[1])}</div>`;
+// play-by-play text uses a few different team codes
+const TXT_AB={ARI:'ARZ',BAL:'BLT',CLE:'CLV',HOU:'HST',LAR:'LA',WSH:'WAS'};
+// "NE 19" / "50" in play text -> yards from the home goal line (the app's field coordinate)
+function txtSpot(tok,n,A,H){if(!tok)return 50;const is=t=>tok===t.ab||tok===TXT_AB[t.ab];return is(H)?+n:is(A)?100-n:null}
+// after an interception or lost fumble, until the new team snaps: the old drive faded, the pass/turnover spot, and the return
+function turnoverHTML(lp,DT,O,A,H,sx,ey){
+  const t=lp.type||'',x=lp.text||'',ly=(lp.st||{}).yl;
+  const int=/intercept/i.test(t)||/INTERCEPTED/.test(x),fum=!int&&/fumble/i.test(t+' '+x);
+  if(!int&&!fum||ly==null)return '';
+  const m=int?/INTERCEPTED by [^.]*? at (?:([A-Z]{2,3}) )?(\d{1,2})\b/.exec(x):/RECOVERED by [A-Z]{2,3}-[^.]*? at (?:([A-Z]{2,3}) )?(\d{1,2})\b/.exec(x);
+  const ty=m?txtSpot(m[1],m[2],A,H):ey;if(ty==null)return '';
+  const X=y=>10+(100-y),lx=X(ly),tx=X(ty),ex=ey!=null?X(ey):null,c=tcol(O),fx_=v=>(v/1.2);
+  const old=sx!=null?`<i class="drv old" style="left:${fx(Math.min(sx,100-ly))}%;width:${Math.abs(100-ly-sx)/1.2}%;background:${tcol(DT)}"></i>`:'';
+  const svg=`<svg class="karc" viewBox="0 0 120 64" preserveAspectRatio="none" aria-hidden="true">${int?`<path d="M${lx} 44Q${(lx+tx)/2} 4 ${tx} 44" class="ka"/>`:''}<circle cx="${tx}" cy="44" r="1.4" class="kl"/>${ex!=null&&Math.abs(ex-tx)>.5?`<path d="M${tx} 44H${ex}" class="kr"/>`:''}</svg>`;
+  return old+svg+`<span class="tom" style="left:${fx_(tx)}%;background:${c};color:${ink(c.slice(1))}">${int?'INT':'FUMBLE'}</span>`;
+}
 function driveHTML(g,b){
   const dr=b.dr;if(!dr)return emptyField(g);
   const [A,H]=g.teams,dlp=dr.lp||{},sl=g.sit&&g.sit.lp;
@@ -590,7 +608,7 @@ function driveHTML(g,b){
     const sy=dr.start!=null?dr.start:lp!==dlp&&!/kickoff|punt/i.test(lp.type||'')?(lp.st||{}).yl:null,sx=sy!=null?100-sy:null;
     field=fieldHTML(A,H,s?`<div class="pin" style="left:${fx(bx)}%">${badge(P)}</div>`:'',
       `${sx!=null&&(!newDrive||!s)?`<i class="drv" style="left:${fx(Math.min(sx,bx))}%;width:${Math.abs(bx-sx)/1.2}%;background:${tcol(DT)}"></i>`:''}
-        ${kickSVG(lp,O,A,newDrive||!prev.length)}${s?'':scoreBanner(lp,DT,A,H)}
+        ${kickSVG(lp,O,A,newDrive||!prev.length)}${s?'':scoreBanner(lp,DT,A,H)}${s&&newDrive?turnoverHTML(lp,DT,O,A,H,sx,s.yl):''}
         ${s?`<i class="los" style="left:${fx(bx)}%"></i>${!s.sdd||!s.dist||/goal/i.test(s.sdd)?'':`<i class="fdl" style="left:${fx(fd)}%"></i>`}`:''}`,
       s?`${O.ab} ball on ${s.pt||''}${s.dd?', '+s.dd:''}`:`${DT.ab} drive: ${lp.type||''}`);
   }
