@@ -239,10 +239,8 @@ td.n{font-family:var(--mono);font-size:13px}
 .lplay .dplays p{margin:0;color:var(--fg)}
 .lplay .dplays .pm{font:400 12px var(--mono);color:var(--muted);margin-bottom:2px}
 .dplays .py{font:500 13px var(--mono);white-space:nowrap;padding-top:16px;text-align:right}
-.pfl{display:block;font:600 10px var(--mono);color:var(--accent-text);margin-top:2px}
 .lplay .pen{color:var(--accent-text)}
-.lph>b:has(+.flag){margin-right:0}
-.lph .flag{font:600 11px var(--mono);background:var(--accent);color:var(--accent-fg);border-radius:4px;padding:2px 6px;margin-right:auto}
+
 .pcs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px;margin-top:12px}
 .pc{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--bg)}
 .ph{display:flex;align-items:center;gap:10px}
@@ -525,10 +523,9 @@ function kickHTML(g,b){
 }
 const sgn=n=>(n>0?'+':'')+n;
 const penTxt=t=>esc(t).replace(/PENALTY on[\s\S]*$/,'<span class="pen">$&</span>');
-const penLab=p=>p.net==null?'PEN':(p.np?'No play · ':'')+'PEN'+(p.eff?' '+sgn(p.eff):'');
 function ydsCell(x){
-  if(x.pen&&x.pen.net!=null)return `${x.pen.net?sgn(x.pen.net):'0'}<small class="pfl">${esc(penLab(x.pen))}</small>`;
-  return (x.yd?esc(sgn(x.yd)):'')+(x.pen?'<small class="pfl">PEN</small>':'');
+  if(x.pen&&x.pen.net!=null)return x.pen.net?sgn(x.pen.net):'0';
+  return x.yd?esc(sgn(x.yd)):'';
 }
 function driveHTML(g,b){
   const dr=b.dr;if(!dr)return '';
@@ -566,7 +563,7 @@ function driveHTML(g,b){
       const cells=r?want.map(l=>{const i=c.l.indexOf(l);return i<0?'':`<div><small>${esc(l)}</small><b>${esc(r[2][i])}</b></div>`}).join(''):'';
       return `<div class="pc"><div class="ph">${pp.img?`<img class="hs" src="${esc(pp.img)}" alt="" onerror="this.remove()">`:''}<div><b>${esc(pp.n)}</b><small>${badge(t)} ${esc(t.name)}${pp.pos?', '+esc(pp.pos):''}${pp.j?', #'+esc(pp.j):''}</small></div></div>${cells?`<div class="ps">${cells}</div>`:''}</div>`};
     const intc=/intercept/i.test(lp.type),fum=/fumble/i.test(lp.type+' '+lp.text),ppl=lp.ppl&&lp.ppl.length?lp.ppl:g.sit&&g.sit.lp&&g.sit.lp.id===lp.id?g.sit.lp.ath.filter(a=>/^(QB|RB|WR|TE|FB|HB)$/.test(a.pos)?a.tid===O.id||intc||fum:intc||fum).map(a=>Object.assign({},a,{ab:(teamsById[a.tid]||O).ab,ty:!/^(QB|RB|WR|TE|FB|HB)$/.test(a.pos)?(intc?'passDefender':'recoverer'):/rush/i.test(lp.type)?'rusher':a.pos==='QB'?'passer':'receiver'})):[];
-    play=`<div class="lplay"><div class="lph"><b>${esc(ttl)}</b>${lp.pen?`<span class="flag">${esc(penLab(lp.pen))}</span>`:''}${wp!=null?`<span class="wp">Win % ${badge(O)} <b>${wp.toFixed(1)}</b></span>`:''}<span class="tag">Last play</span></div>
+    play=`<div class="lplay"><div class="lph"><b>${esc(ttl)}</b>${wp!=null?`<span class="wp">Win % ${badge(O)} <b>${wp.toFixed(1)}</b></span>`:''}<span class="tag">Last play</span></div>
       <p>${penTxt(lp.text)}</p>${ppl.length?`<div class="pcs">${ppl.filter((x,i)=>ppl.findIndex(y=>y.id===x.id)===i).map(pc).join('')}</div>`:''}
       ${lp.st&&lp.st.dd?`<p class="lpf">${lp.q?esc((lp.q>4?'OT':'Q'+lp.q)+' '+lp.clk)+' · ':''}${esc(lp.st.dd)}</p>`:''}
       ${(prev||[]).length?`<details class="dpx"${drvOpen?' open':''}><summary><span class="o">Show ${prev.length} earlier play${prev.length>1?'s':''} this drive</span><span class="c">Hide earlier plays</span></summary><ol class="dplays">${prev.slice().reverse().map(x=>`<li><div><p class="pm">${x.q?esc((x.q>4?'OT':'Q'+x.q)+' '+x.clk):''}${x.q&&x.dd?' · ':''}${esc(x.dd)}</p><p>${penTxt(x.text)}</p></div><span class="py">${ydsCell(x)}</span></li>`).join('')}</ol></details>`:''}</div>`;
