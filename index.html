@@ -142,7 +142,9 @@ td .logo{width:28px;height:28px}
 .odd{font:500 13px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
 .score{font:800 24px/1 var(--display);font-variant-numeric:tabular-nums;text-align:right}
 .trow.lose .ab,.trow.lose .score{color:var(--muted)}
-.fb{flex:0 0 auto;width:14px;height:9px;fill:#8a5a2b;stroke:var(--fg);stroke-width:.8;margin-left:-2px}
+.fb{flex:0 0 auto;width:20px;height:12px}
+.fb-b{fill:#7a4420;stroke:#3d1f0c;stroke-width:.6}
+.fb-l{fill:none;stroke:#fff;stroke-width:1;stroke-linecap:round}
 .sit{font:500 12px var(--mono);color:var(--muted)}
 .sit.rz{color:var(--live)}
 .trow.win .score::before{content:"◂";font-size:12px;color:var(--accent-text);margin-right:5px;vertical-align:middle}
@@ -259,10 +261,11 @@ function lines(g){
   else if(/^EVEN/i.test(g.odds||''))g.teams.forEach(t=>out[t.id]='PK');
   return out;
 }
+const FB='<svg class="fb" viewBox="0 0 20 12" role="img" aria-label="Has the ball"><path class="fb-b" d="M1 6C4.5.6 15.5.6 19 6C15.5 11.4 4.5 11.4 1 6Z"/><path class="fb-l" d="M3.2 3.6v4.8M16.8 3.6v4.8M7 6h6M8 4.7v2.6M9.4 4.7v2.6M10.6 4.7v2.6M12 4.7v2.6"/></svg>';
 function card(g){
   const [a,h]=g.teams, ln=lines(g);
   const lnA=g.ou?'o'+g.ou:'', lnH=g.odds?ln[h.id]||'':'';
-  const row=(t,l)=>`<div class="trow ${g.state==='post'?(t.win?'win':'lose'):''}">${badge(t)}<span class="ab">${esc(t.ab)}</span><span class="rec">${esc(t.rec||'')}</span>${g.state==='pre'?`<span class="odd">${esc(l)}</span>`:`<span class="score">${esc(t.score)}</span>`}${g.state==='in'&&g.sit&&g.sit.poss===t.id?'<svg class="fb" viewBox="0 0 14 9" role="img" aria-label="Has the ball"><ellipse cx="7" cy="4.5" rx="6.5" ry="4"/></svg>':''}</div>`;
+  const row=(t,l)=>`<div class="trow ${g.state==='post'?(t.win?'win':'lose'):''}">${badge(t)}<span class="ab">${esc(t.ab)}</span><span class="rec">${esc(t.rec||'')}</span>${g.state==='pre'?`<span class="odd">${esc(l)}</span>`:`${g.state==='in'&&g.sit&&g.sit.poss===t.id?FB:''}<span class="score">${esc(t.score)}</span>`}</div>`;
   const sl=slot(g),dy=isTBD(g)?etFmt(g.date,{weekday:'short'}):new Date(g.date).toLocaleDateString(undefined,{weekday:'short'});const st=(sl?'':dy+' ')+(g.state==='pre'?timeOf(g):g.state==='in'?g.stat:('Final'+(/OT/.test(g.stat)?'/OT':'')));
   return `<button class="card" data-id="${g.id}" aria-label="${esc(a.loc+' '+a.name+' at '+h.loc+' '+h.name)}">
     <div class="ctop"><span class="st ${g.state==='in'?'live':''}">${sl?`<b class="slot">${sl}</b> `:''}${esc(st)}</span><span class="tv">${esc(g.tv.join(', '))}</span></div>
