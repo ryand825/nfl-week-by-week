@@ -255,10 +255,14 @@ td.n{font-family:var(--mono);font-size:13px}
 .cmp .lab{text-align:center;font-size:13px;color:var(--muted)}
 .bars{grid-column:1/-1;display:flex;height:5px;gap:2px;margin-bottom:6px}
 .bars i{display:block;height:100%;border-radius:2px}
-.plays{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
-.plays li{display:grid;grid-template-columns:42px 1fr auto;gap:10px;align-items:start;font-size:14px}
-.plays .q{font:500 12px var(--mono);color:var(--muted);padding-top:2px}
-.plays .sc{font:500 13px var(--mono);white-space:nowrap}
+.ssum .ssh,.ssum .ssr{display:grid;grid-template-columns:24px minmax(0,1fr) 36px 36px;gap:0 10px;align-items:start}
+.ssh span{font:500 11px var(--mono);letter-spacing:.06em;color:var(--muted);text-align:center;padding-bottom:6px}
+.ssr{padding:10px 0;border-top:1px solid var(--line)}
+.ssr .logo{width:22px;height:22px}
+.ssr p{margin:0}
+.ssr .tt{font-size:14px}.ssr .tt small{font:400 12px var(--mono);color:var(--muted)}
+.ssr .tx{font-size:13px;color:var(--muted);margin-top:2px}
+.ssr .n{font:500 15px var(--mono);text-align:center;color:var(--muted)}.ssr .n.hi{color:var(--fg);font-weight:700}
 .tsel{display:flex;gap:4px;margin-bottom:10px}
 .tsel button{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:5px 12px;font-weight:600;font-size:13px}
 .tsel button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
@@ -564,7 +568,9 @@ function openGame(id,trigger,re){
     if(b&&g.state==='in')body+=/halftime/i.test(g.stat)?halfHTML(g,b):driveHTML(g,b);
     if(b&&b.bt.length){
       body+=`<div class="sec"><h4>Team stats</h4><div class="cmp">${cmpHTML(g,b)}</div></div>`;
-      if(b.sp.length)body+=`<div class="sec"><h4>Scoring</h4><ul class="plays">${b.sp.map(p=>`<li><span class="q">${p.q>4?'OT':'Q'+p.q} ${esc(p.clock)}</span><span><b>${esc(p.team)}</b> ${esc(p.text)}</span><span class="sc">${p.a}–${p.h}</span></li>`).join('')}</ul></div>`;
+      if(b.sp.length)body+=`<div class="sec"><h4>Scoring</h4><div class="ssum"><div class="ssh"><span></span><span></span><span>${esc(A.ab)}</span><span>${esc(H.ab)}</span></div>${b.sp.map(p=>{
+        const t=teamsById[p.tid]||Object.values(teamsById).find(x=>x.ab===p.team)||{ab:p.team,color:'444444',alt:'999999'},ty=p.ty||(/field goal/i.test(p.text)?'Field Goal':/safety/i.test(p.text)?'Safety':'Touchdown');
+        return `<div class="ssr">${badge(t)}<div><p class="tt"><b>${esc(ty)}</b> <small>· ${p.q>4?'OT':'Q'+p.q} ${esc(p.clock)}</small></p><p class="tx">${esc(p.text)}</p></div><span class="n${t.id===A.id?' hi':''}">${esc(p.a)}</span><span class="n${t.id===H.id?' hi':''}">${esc(p.h)}</span></div>`}).join('')}</div></div>`;
       body+=lsT;
       body+=`<div class="sec"><h4>Player stats</h4><div class="tsel">${g.teams.map((t,i)=>`<button data-team="${i}" aria-pressed="${i===detailTeam}">${esc(t.ab)}</button>`).join('')}</div><div id="pl">${playersHTML(g,b)}</div></div>`;
     }else body+=lsT+`<p class="empty">Box score is not in this snapshot yet.</p>`;
@@ -611,7 +617,7 @@ async function fetchBox(id){
     const d=await jget(API+'summary?event='+id);
     BOX[id]={bt:((d.boxscore||{}).teams||[]).map(t=>({id:t.team.id,s:t.statistics.map(s=>[s.label,s.displayValue])})),
       pl:((d.boxscore||{}).players||[]).map(t=>({id:t.team.id,cats:t.statistics.map(c=>({n:c.name,l:c.labels,a:c.athletes.map(a=>[a.athlete.displayName,a.athlete.jersey,a.stats,a.athlete.id])}))})),
-      sp:(d.scoringPlays||[]).map(p=>({q:(p.period||{}).number,clock:(p.clock||{}).displayValue,team:p.team.abbreviation,text:p.text,a:p.awayScore,h:p.homeScore})),
+      sp:(d.scoringPlays||[]).map(p=>({q:(p.period||{}).number,clock:(p.clock||{}).displayValue,team:p.team.abbreviation,tid:p.team.id,ty:(p.scoringType||{}).displayName||'',text:p.text,a:p.awayScore,h:p.homeScore})),
       dr:driveOf(d),first:((((d.drives||{}).previous||[])[0]||{}).team||{}).id||null,wp:((d.winprobability||[]).slice(-1)[0]||{}).homeWinPercentage??null,
       inj:(d.injuries||[]).map(t=>({id:t.team.id,items:(t.injuries||[]).map(i=>{const x=i.details||{},a=i.athlete||{};return{n:a.displayName||'',pos:(a.position||{}).abbreviation||'',j:a.jersey||'',s:i.status,b:x.type||'',d:x.detail||'',side:x.side||'',r:x.returnDate||''}})}))};
     return true;
