@@ -557,7 +557,7 @@ function driveHTML(g,b){
   let field='';
   if(s){
     const fd=Math.max(0,Math.min(100,goR?bx+(+s.dist||0):bx-(+s.dist||0)));
-    const sx=dr.start!=null?100-dr.start:null;
+    const sy=dr.start!=null?dr.start:lp!==dlp&&!/kickoff|punt/i.test(lp.type||'')?(lp.st||{}).yl:null,sx=sy!=null?100-sy:null;
     const lines=[1,2,3,4,5,6,7,8,9].map(i=>`<i class="yl${i===5?' mid':''}" style="left:${fx(i*10)}%"></i>`).join('');
     const nums=[10,20,30,40,50,40,30,20,10].map((n,i)=>`<span style="left:${fx((i+1)*10)}%">${n}</span>`).join('');
     const ez=(t,side)=>`<div class="ez ${side}" style="background:${tcol(t)};color:${ink(t.color==='000000'?t.alt:t.color)}"><span${t.name.length>8?' style="font-size:10px"':''}>${esc(t.name)}</span></div>`;
