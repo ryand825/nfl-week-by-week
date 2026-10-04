@@ -234,8 +234,9 @@ td.n{font-family:var(--mono);font-size:13px}
 .ynum{position:relative;height:18px;font:500 11px var(--mono);color:var(--muted)}
 .ynum span{position:absolute;top:3px;transform:translateX(-50%)}
 .lplay{margin-top:14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:12px 14px}
-.lph{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.lph>b{font-weight:600;margin-right:auto}
+.lph{display:flex;align-items:center;gap:10px}
+.lph .wp,.lph .tag{flex:0 0 auto}
+.lph>b{font-weight:600;margin-right:auto;flex:1 1 0;min-width:0}
 .lph .wp{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--muted)}
 .lph .wp .logo{width:20px;height:20px}
 .lph .wp b{color:var(--fg);font:500 13px var(--mono)}
@@ -600,10 +601,10 @@ const TXT_AB={ARI:'ARZ',BAL:'BLT',CLE:'CLV',HOU:'HST',LAR:'LA',WSH:'WAS'};
 // "NE 19" / "50" in play text -> yards from the home goal line (the app's field coordinate)
 function txtSpot(tok,n,A,H){if(!tok)return 50;const is=t=>tok===t.ab||tok===TXT_AB[t.ab];return is(H)?+n:is(A)?100-n:null}
 // after an interception, lost fumble or turnover on downs, until the new team snaps: the old drive faded, the pass/turnover spot, and the return
-function turnoverHTML(lp,DT,O,A,H,sx,ey){
+function turnoverHTML(lp,DT,O,A,H,sx,ey,res){
   const t=lp.type||'',x=lp.text||'',ly=(lp.st||{}).yl;
   const int=/intercept/i.test(t)||/INTERCEPTED/.test(x),fum=!int&&/fumble/i.test(t+' '+x);
-  const dwn=!int&&!fum&&(lp.st||{}).down===4&&!/punt|kick|field goal|touchdown|safety/i.test(t);
+  const dwn=!int&&!fum&&(res==='DOWNS'||(lp.st||{}).down===4)&&!/punt|kick|field goal|touchdown|safety/i.test(t);
   if(!int&&!fum&&!dwn||ly==null)return '';
   const m=dwn?null:int?/INTERCEPTED by [^.]*? at (?:([A-Z]{2,3}) )?(\d{1,2})\b/.exec(x):/RECOVERED by [A-Z]{2,3}-[^.]*? at (?:([A-Z]{2,3}) )?(\d{1,2})\b/.exec(x);
   const ty=m?txtSpot(m[1],m[2],A,H):ey;if(ty==null)return '';
@@ -642,7 +643,7 @@ function driveHTML(g,b){
     const sy=dr.start!=null?dr.start:lp!==dlp&&!/kickoff|punt/i.test(lp.type||'')?(lp.st||{}).yl:null,sx=sy!=null?100-sy:null;
     field=fieldHTML(A,H,s?`<div class="pin" style="left:${fx(bx)}%">${badge(P)}</div>`:'',
       `${sx!=null&&(!newDrive||!s)&&!(sc&&sc.S!==DT)?`<i class="drv" style="left:${fx(Math.min(sx,bx))}%;width:${Math.abs(bx-sx)/1.2}%;${drvStyle(DT)}"></i>`:''}
-        ${kickSVG(lp,O,A,newDrive||!prev.length,s?s.yl:null)}${s?'':scoreBanner(lp,DT,A,H)}${s&&newDrive?turnoverHTML(lp,DT,O,A,H,sx,s.yl):''}
+        ${kickSVG(lp,O,A,newDrive||!prev.length,s?s.yl:null)}${s?'':scoreBanner(lp,DT,A,H)}${s&&newDrive?turnoverHTML(lp,DT,O,A,H,sx,s.yl,dr.res):''}
         ${s?`<i class="los" style="left:${fx(bx)}%"></i>${!s.sdd||!s.dist||/goal/i.test(s.sdd)?'':`<i class="fdl" style="left:${fx(fd)}%"></i>`}`:''}`,
       s?`${O.ab} ball on ${s.pt||''}${s.dd?', '+s.dd:''}`:`${DT.ab} drive: ${lp.type||''}`);
   }
@@ -650,7 +651,7 @@ function driveHTML(g,b){
   if(lp.text){
     const wp=wpH==null?null:Math.round((O===H?wpH:1-wpH)*1000)/10;
     const cur={type:lp.type,q:lp.q,clk:lp.clk,dd:(lp.st||{}).dd||'',text:lp.text,yd:lp.yd,pen:lp.pen};
-    play=`<div class="lplay"><div class="lph"><b>${esc(lp.type)}</b>${wp!=null?`<span class="wp">Win % ${badge(O)} <b>${wp.toFixed(1)}</b></span>`:''}<span class="tag">Last play</span></div>
+    play=`<div class="lplay"><div class="lph"><b>${esc(lp.type)}${newDrive&&lp===dlp&&dr.res==='DOWNS'?' – Turnover on downs':''}</b>${wp!=null?`<span class="wp">Win % ${badge(O)} <b>${wp.toFixed(1)}</b></span>`:''}<span class="tag">Last play</span></div>
       ${newDrive?`<p class="pdh">${badge(DT)} ${esc(DT.name)} drive${desc?' · '+esc(desc):''}</p>`:''}
       <div class="lpr">${playRow(cur)}</div>
       ${(prev||[]).length?`<details class="dpx"${drvOpen?' open':''}><summary><span class="o">Show ${prev.length} earlier play${prev.length>1?'s':''} ${newDrive?'that':'this'} drive</span><span class="c">Hide earlier plays</span></summary><ol class="dplays">${prev.slice().reverse().map(x=>`<li>${playRow(x)}</li>`).join('')}</ol></details>`:''}</div>`;
@@ -734,7 +735,7 @@ function driveOf(d){
   const ps=cd.plays||[],real=ps.filter(x=>!/timeout|two-minute|end (of )?(period|quarter|half|game)/i.test((x.type||{}).text||'')),lp=real.slice(-1)[0]||ps.slice(-1)[0],sp=x=>x?{down:x.down,dist:x.distance,yl:x.yardLine,dd:x.downDistanceText,sdd:x.shortDownDistanceText,pt:x.possessionText,poss:(x.team||{}).id}:{};
   const pv=((d.drives||{}).previous||[]).slice(-1)[0]||{},last=Math.max(+((ps.slice(-1)[0]||{}).id||0),+(((pv.plays||[]).slice(-1)[0]||{}).id||0));
   const snap=real.find(x=>!/kickoff|punt/i.test((x.type||{}).text||''));
-  return{tid:(cd.team||{}).id,desc:cd.description||'',start:snap?(snap.start||{}).yardLine:null,last,
+  return{tid:(cd.team||{}).id,res:cd.result||'',desc:cd.description||'',start:snap?(snap.start||{}).yardLine:null,last,
     prev:real.filter(x=>x!==lp).map(x=>({type:(x.type||{}).text||'',yd:x.statYardage,pen:penOf(x),text:(x.text||'').trim(),q:(x.period||{}).number,clk:(x.clock||{}).displayValue||'',dd:(x.start||{}).downDistanceText||''})),
     lp:lp?{id:lp.id,type:(lp.type||{}).text||'',yd:lp.statYardage,pen:penOf(lp),text:(lp.text||'').trim(),q:(lp.period||{}).number,clk:(lp.clock||{}).displayValue||'',st:sp(lp.start),en:sp(lp.end)}:null};
 }
