@@ -605,13 +605,16 @@ function turnoverHTML(lp,DT,O,A,H,sx,ey,res){
   const t=lp.type||'',x=lp.text||'',ly=(lp.st||{}).yl;
   const int=/intercept/i.test(t)||/INTERCEPTED/.test(x),fum=!int&&/fumble/i.test(t+' '+x);
   const dwn=!int&&!fum&&(res==='DOWNS'||(lp.st||{}).down===4)&&!/punt|kick|field goal|touchdown|safety/i.test(t);
-  if(!int&&!fum&&!dwn||ly==null)return '';
-  const m=dwn?null:int?/INTERCEPTED by [^.]*? at (?:([A-Z]{2,3}) )?(\d{1,2})\b/.exec(x):/RECOVERED by [A-Z]{2,3}-[^.]*? at (?:([A-Z]{2,3}) )?(\d{1,2})\b/.exec(x);
+  // ball changed hands but ESPN's play doesn't say how yet (e.g. a ruling reversed on review): generic tag until it's rewritten
+  const gen=!int&&!fum&&!dwn&&!/punt|kick|field goal|extra point|touchdown|safety/i.test(t+' '+x);
+  if(!int&&!fum&&!dwn&&!gen||ly==null)return '';
+  // names are written "C.Henderson" (with a period), so match the name as a non-space token
+  const m=int?/INTERCEPTED by \S+(?: (?:Jr|Sr)\.)? at (?:([A-Z]{2,3}) )?(\d{1,2})\b/.exec(x):fum?/RECOVERED by [A-Z]{2,3}-\S+(?: (?:Jr|Sr)\.)? at (?:([A-Z]{2,3}) )?(\d{1,2})\b/.exec(x):null;
   const ty=m?txtSpot(m[1],m[2],A,H):ey;if(ty==null)return '';
   const X=y=>10+(100-y),lx=X(ly),tx=X(ty),ex=ey!=null?X(ey):null,c=tcol(O),fx_=v=>(v/1.2);
   const old=sx!=null?`<i class="drv old" style="left:${fx(Math.min(sx,100-ly))}%;width:${Math.abs(100-ly-sx)/1.2}%;${drvStyle(DT,1)}"></i>`:'';
-  const svg=`<svg class="karc" viewBox="0 0 120 64" preserveAspectRatio="none" aria-hidden="true">${int?`<path d="M${lx} 44Q${(lx+tx)/2} 4 ${tx} 44" class="ka"/>`:''}${dwn?'':`<circle cx="${tx}" cy="44" r="1.4" class="kl"/>${ex!=null&&Math.abs(ex-tx)>.5?`<path d="M${tx} 44H${ex}" class="kr"/>`:''}`}</svg>`;
-  return old+svg+`<span class="tom" style="left:${fx_(tx)}%;background:${c};color:${ink(c.slice(1))}">${int?'INT':fum?'FUMBLE':'DOWNS'}</span>`;
+  const svg=`<svg class="karc" viewBox="0 0 120 64" preserveAspectRatio="none" aria-hidden="true">${int?`<path d="M${lx} 44Q${(lx+tx)/2} 4 ${tx} 44" class="ka"/>`:''}${dwn||gen?'':`<circle cx="${tx}" cy="44" r="1.4" class="kl"/>${ex!=null&&Math.abs(ex-tx)>.5?`<path d="M${tx} 44H${ex}" class="kr"/>`:''}`}</svg>`;
+  return old+svg+`<span class="tom" style="left:${fx_(tx)}%;background:${c};color:${ink(c.slice(1))}">${int?'INT':fum?'FUMBLE':dwn?'DOWNS':'TURNOVER'}</span>`;
 }
 function driveHTML(g,b){
   const dr=b.dr;if(!dr)return emptyField(g);
