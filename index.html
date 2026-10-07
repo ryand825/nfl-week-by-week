@@ -325,8 +325,10 @@ const timeOf=g=>isTBD(g)?'TBD':fmtTime(g.date);
 const sortKey=g=>new Date(g.date).getTime()+(isTBD(g)?18*3600e3:0);
 const dayKey=d=>{const x=new Date(d);return x.getFullYear()+'-'+x.getMonth()+'-'+x.getDate()};
 function weekState(i){const gs=W[i];if(gs.some(g=>g.state==='in'))return 'live';if(gs.length&&gs.every(g=>g.state==='post'))return 'done';return ''}
-function defaultWeek(){const i=W.findIndex((_,i)=>weekState(i)!=='done');return i<0?W.length-1:i}
-let wk=defaultWeek(), view='scores';
+// current week: ESPN's calendar week once known (Wed-Tue), else the first unfinished week; used for both the default week and the red bar
+let espnWk=null;
+function curIdx(){if(espnWk!=null)return espnWk;const i=W.findIndex((_,i)=>weekState(i)!=='done');return i<0?W.length-1:i}
+let wk=curIdx(), view='scores';
 
 function statusText(g){
   if(g.state==='pre')return timeOf(g);
@@ -350,7 +352,6 @@ function card(g){
     <div class="ctop"><span class="st ${g.state==='in'?'live':''}">${sl?`<b class="slot">${sl}</b> `:''}${esc(st)}</span><span class="tv">${esc(g.tv.join(', '))}</span></div>
     ${row(a,lnA)}${row(h,lnH)}${g.state==='in'&&g.sit&&g.sit.dd?`<div class="sit${g.sit.rz?' rz':''}">${esc(g.sit.dd)}</div>`:''}</button>`;
 }
-function curIdx(){const i=W.findIndex((_,i)=>weekState(i)!=='done');return i<0?W.length-1:i}
 function renderStrip(){
   const cur=curIdx();
   $('#strip').innerHTML=W.map((_,i)=>`<button class="wk ${weekState(i)}${i===cur?' cur':''}" role="tab" data-i="${i}" aria-current="${i===wk}" aria-label="Week ${i+1}">${i+1}<i></i></button>`).join('');
@@ -776,7 +777,7 @@ async function refreshCurrent(){
   try{
     const d=await jget(API+'scoreboard');
     const n=d.week&&d.week.number;
-    if(n&&W[n-1]&&!touched&&d.season.type===2){wk=n-1;render()}
+    if(n&&W[n-1]&&d.season.type===2){espnWk=n-1;if(!touched)wk=espnWk;render()}
   }catch(e){}
   refreshLive();
 }
