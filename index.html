@@ -325,6 +325,8 @@ const timeOf=g=>isTBD(g)?'TBD':fmtTime(g.date);
 const sortKey=g=>new Date(g.date).getTime()+(isTBD(g)?18*3600e3:0);
 const dayKey=d=>{const x=new Date(d);return x.getFullYear()+'-'+x.getMonth()+'-'+x.getDate()};
 function weekState(i){const gs=W[i];if(gs.some(g=>g.state==='in'))return 'live';if(gs.length&&gs.every(g=>g.state==='post'))return 'done';return ''}
+// the saved snapshot goes stale; until live results are merged, trust the last current week this browser saw
+let liveLoaded=false;const lastCur=Math.max(0,Math.min(+pref('nfl-cur')||0,W.length))-1;
 let wk=curIdx(), view='scores';
 
 function statusText(g){
@@ -350,10 +352,11 @@ function card(g){
     ${row(a,lnA)}${row(h,lnH)}${g.state==='in'&&g.sit&&g.sit.dd?`<div class="sit${g.sit.rz?' rz':''}">${esc(g.sit.dd)}</div>`:''}</button>`;
 }
 // current week (red bar, and the week the app opens on): the first week that isn't fully final
-function curIdx(){const i=W.findIndex((_,i)=>weekState(i)!=='done');return i<0?W.length-1:i}
+function curIdx(){const i=W.findIndex((_,i)=>weekState(i)!=='done'),c=i<0?W.length-1:i;return liveLoaded?c:Math.max(c,lastCur)}
+const shownState=i=>!liveLoaded&&i<lastCur&&weekState(i)!=='live'?'done':weekState(i);
 function renderStrip(){
-  const cur=curIdx();
-  $('#strip').innerHTML=W.map((_,i)=>`<button class="wk ${weekState(i)}${i===cur?' cur':''}" role="tab" data-i="${i}" aria-current="${i===wk}" aria-label="Week ${i+1}">${i+1}<i></i></button>`).join('');
+  const cur=curIdx();if(liveLoaded)pref('nfl-cur',cur+1);
+  $('#strip').innerHTML=W.map((_,i)=>`<button class="wk ${shownState(i)}${i===cur?' cur':''}" role="tab" data-i="${i}" aria-current="${i===wk}" aria-label="Week ${i+1}">${i+1}<i></i></button>`).join('');
   $('#prev').disabled=wk===0;$('#next').disabled=wk===W.length-1;
   const el=$('#strip .wk[aria-current="true"]');if(el)el.scrollIntoView({inline:'center',block:'nearest'});
 }
@@ -782,7 +785,7 @@ async function refreshCurrent(){
       mergeWeek(n-1,d.events||[]);
       const stale=W.slice(0,n-1).map((_,i)=>i).filter(i=>weekState(i)!=='done');
       await Promise.all(stale.map(i=>jget(API+`scoreboard?week=${i+1}&seasontype=2&dates=2026`).then(x=>mergeWeek(i,x.events||[])).catch(()=>{})));
-      if(!touched)wk=curIdx();render();
+      liveLoaded=true;if(!touched)wk=curIdx();render();
     }
   }catch(e){}
   refreshLive();
