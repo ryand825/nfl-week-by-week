@@ -776,8 +776,14 @@ async function refreshCurrent(){
   try{
     const d=await jget(API+'scoreboard');
     const n=d.week&&d.week.number;
-    // the saved snapshot can be days old: fold in ESPN's live results for its current week, then pick the first unfinished week
-    if(n&&W[n-1]&&d.season.type===2){mergeWeek(n-1,d.events||[]);if(!touched)wk=curIdx();render()}
+    // the saved snapshot can be days or weeks old: fold in ESPN's live results for its current week and every
+    // earlier week the snapshot doesn't have as final, then open on the first unfinished week
+    if(n&&W[n-1]&&d.season.type===2){
+      mergeWeek(n-1,d.events||[]);
+      const stale=W.slice(0,n-1).map((_,i)=>i).filter(i=>weekState(i)!=='done');
+      await Promise.all(stale.map(i=>jget(API+`scoreboard?week=${i+1}&seasontype=2&dates=2026`).then(x=>mergeWeek(i,x.events||[])).catch(()=>{})));
+      if(!touched)wk=curIdx();render();
+    }
   }catch(e){}
   refreshLive();
 }
