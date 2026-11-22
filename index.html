@@ -171,6 +171,32 @@ tbody tr+tr td{border-top:1px solid var(--line)}
 td.n{font-family:var(--mono);font-size:13px}
 .pos{color:var(--good)} .neg{color:var(--live)}
 .rank{font:500 12px var(--mono);color:var(--muted);width:1.5ch;text-align:right}
+/* playoff picture */
+.po{display:flex;flex-direction:column}
+.po h5{font:600 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0;padding:10px 12px 6px;background:var(--surface2);border-top:1px solid var(--line)}
+.po h5:first-child{border-top:0}
+.por{display:grid;grid-template-columns:2.4ch minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:8px 12px;min-height:46px}
+.por+.por{border-top:1px solid var(--line)}
+.por .sd{font:800 20px/1 var(--display);text-align:right;color:var(--accent-text)}
+.por.out .sd{color:var(--muted);font-size:16px}
+.por .tl{min-width:0}.por .tl span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.por .rc{font:500 13px var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.por .gb{font:400 12px var(--mono);color:var(--muted);text-align:right;min-width:5ch}
+.por.elim{opacity:.5}
+.ptag{font:700 10px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line);border-radius:4px;padding:3px 5px;color:var(--muted);white-space:nowrap}
+.ptag.bye{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.ptag.cl{border-color:var(--good);color:var(--good)}
+.ptag.el{border-color:var(--live);color:var(--live)}
+.pm{display:grid;grid-template-columns:2.4ch minmax(0,1fr) auto minmax(0,1fr) 2.4ch;align-items:center;gap:8px;padding:9px 12px}
+.pm+.pm{border-top:1px solid var(--line)}
+.pm .sd{font:800 16px/1 var(--display);color:var(--muted);text-align:center}
+.pm .t{display:flex;align-items:center;gap:8px;min-width:0}.pm .t.h{justify-content:flex-end}
+.pm .t b{font:800 18px/1 var(--display);letter-spacing:.03em}
+.pm .at{font:500 12px var(--mono);color:var(--muted)}
+.pm .logo,.por .logo{width:26px;height:26px}
+.pnote{color:var(--muted);font-size:13px;margin:12px 0 0;padding-inline:16px}
+.pkey{padding-inline:16px;display:flex;flex-wrap:wrap;gap:6px 14px;color:var(--muted);font:400 12px var(--mono);margin:6px 0 0}
+.pkey span{display:inline-flex;gap:6px;align-items:center}
 /* detail sheet */
 .ov{position:fixed;inset:0;z-index:20;background:#000a;display:flex;justify-content:center;align-items:flex-start;overflow-y:auto;padding:max(16px,env(safe-area-inset-top,0px)) 12px 24px}
 .sheet{background:var(--bg);border:1px solid var(--line);border-radius:12px;width:100%;max-width:760px;padding:16px 16px 24px;margin-block:auto}
@@ -370,7 +396,7 @@ function renderScores(){
   $('#main').className='wrap full sc';
   $('#main').innerHTML=html;
 }
-let grp=pref('nfl-grp')==='conf'?'conf':'div';
+let grp=['conf','po'].includes(pref('nfl-grp'))?pref('nfl-grp'):'div';
 function standTable(rows,title,sub){
   const cols=[['W','wins'],['L','losses'],['T','ties'],['PCT','winPercent'],['PF','pointsFor'],['PA','pointsAgainst'],['DIFF','pointDifferential'],['STRK','streak'],['HOME','Home'],['ROAD','Road'],['CONF','vs. Conf.'],['DIV','divisionRecord']];
   const e=rows.slice().sort((a,b)=>(+b.m.winPercent)-(+a.m.winPercent)||(+b.m.pointDifferential)-(+a.m.pointDifferential));
@@ -380,11 +406,49 @@ function standTable(rows,title,sub){
 }
 function renderStand(){
   $('#main').className='wrap fullm';
-  let html=`<div class="stbar"><div class="tabs gsel" role="group" aria-label="Group standings by"><button data-grp="div" aria-pressed="${grp==='div'}">Division</button><button data-grp="conf" aria-pressed="${grp==='conf'}">Conference</button></div></div>`;
+  let html=`<div class="stbar"><div class="tabs gsel" role="group" aria-label="Group standings by"><button data-grp="div" aria-pressed="${grp==='div'}">Division</button><button data-grp="conf" aria-pressed="${grp==='conf'}">Conference</button><button data-grp="po" aria-pressed="${grp==='po'}">Playoffs</button></div></div>`;
   const byId={};DATA.stand.forEach(c=>c.ents.forEach(t=>byId[t.id]=t));
   if(grp==='div')['AFC','NFC'].forEach(cf=>{html+=`<div class="divgrid">`+DATA.divs.filter(d=>d.conf===cf).map(d=>standTable(d.ids.map(i=>byId[i]).filter(Boolean),d.name)).join('')+`</div>`});
+  else if(grp==='po')html+=playoffHTML();
   else DATA.stand.forEach(c=>{html+=standTable(c.ents,c.conf)});
   $('#main').innerHTML=html;
+}
+/* playoff picture: ESPN's own seeding (playoffSeed, with its tiebreakers) and clinch marks; if a feed lacks seeds,
+   fall back to division leaders 1-4 and the best of the rest 5-7, ordered by win percentage then point differential */
+const CLINCH={'*':['Clinched #1 seed','cl'],z:['Clinched bye','cl'],y:['Clinched division','cl'],x:['Clinched playoff berth','cl'],e:['Eliminated','el']};
+const CLAB={'*':'#1 seed',z:'Bye',y:'Div',x:'In',e:'Out'};
+function seedConf(c){
+  const ents=c.ents.slice(),num=t=>+t.m.playoffSeed;
+  if(ents.every(t=>num(t)>0))return ents.sort((a,b)=>num(a)-num(b));
+  const by=(a,b)=>(+b.m.winPercent)-(+a.m.winPercent)||parseFloat(b.m.pointDifferential)-parseFloat(a.m.pointDifferential);
+  const leaders=DATA.divs.filter(d=>d.conf===c.conf).map(d=>ents.filter(t=>d.ids.includes(t.id)).sort(by)[0]).filter(Boolean).sort(by);
+  return leaders.concat(ents.filter(t=>!leaders.includes(t)).sort(by));
+}
+const recOf=t=>t.m.overall||[t.m.wins,t.m.losses].concat(+t.m.ties?[t.m.ties]:[]).join('-');
+function gbOf(t,ref){
+  const w=x=>(+x.m.wins||0)+(+x.m.ties||0)/2,l=x=>(+x.m.losses||0)+(+x.m.ties||0)/2;
+  const g=((w(ref)-w(t))+(l(t)-l(ref)))/2;return g<=0?'—':String(g);
+}
+function playoffHTML(){
+  const conf=DATA.stand.map(c=>{
+    const s=seedConf(c),seven=s[6];
+    const row=(t,i,inField)=>{
+      const tm=teamsById[t.id]||{color:'444444',ab:t.ab},cl=CLINCH[t.m.clincher];
+      const tag=inField&&i===0&&!cl?'<span class="ptag bye">Bye</span>':cl?`<span class="ptag ${cl[1]}" title="${esc(cl[0])}">${esc(CLAB[t.m.clincher])}</span>`:'<span></span>';
+      return `<div class="por${inField?'':' out'}${t.m.clincher==='e'?' elim':''}"><span class="sd">${i+1}</span><button class="tl" data-tid="${esc(t.id)}">${badge(tm)}<span>${esc(t.name)}</span></button><span class="rc">${esc(recOf(t))}</span>${inField||t.m.clincher==='e'?tag:`<span class="gb">${seven?esc(gbOf(t,seven))+' GB':''}</span>`}</div>`};
+    const tb=t=>teamsById[t.id]||{color:'444444',ab:t.ab};
+    const mu=(h,a,hs,as)=>`<div class="pm"><span class="sd">${as}</span><span class="t">${badge(tb(a))}<b>${esc(tb(a).ab)}</b></span><span class="at">at</span><span class="t h"><b>${esc(tb(h).ab)}</b>${badge(tb(h))}</span><span class="sd">${hs}</span></div>`;
+    const games=s.length>=7?[[1,6],[2,5],[3,4]].map(([h,a])=>mu(s[h],s[a],h+1,a+1)).join(''):'';
+    return `<section class="conf"><h3>${esc(c.conf)}</h3><div class="tw po">
+      <h5>Division leaders</h5>${s.slice(0,4).map((t,i)=>row(t,i,true)).join('')}
+      <h5>Wild card</h5>${s.slice(4,7).map((t,i)=>row(t,i+4,true)).join('')}
+      ${games?`<h5>Wild Card round if it ended today</h5>${games}`:''}
+      <h5>In the hunt</h5>${s.slice(7).map((t,i)=>row(t,i+7,false)).join('')}
+    </div></section>`;
+  }).join('');
+  const used=new Set(DATA.stand.flatMap(c=>c.ents.map(t=>t.m.clincher)).filter(k=>CLINCH[k]));
+  const key=[...used].map(k=>`<span><span class="ptag ${CLINCH[k][1]}">${esc(CLAB[k])}</span>${esc(CLINCH[k][0])}</span>`).join('');
+  return `<div class="divgrid">${conf}</div><p class="pnote">Seeds and tiebreakers from ESPN. The #1 seed gets the only bye; GB is games behind the 7th seed.</p>${key?`<div class="pkey">${key}</div>`:''}`;
 }
 function slot(g){
   const p=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',hour12:false}).formatToParts(new Date(g.date));
